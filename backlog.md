@@ -26,6 +26,7 @@ This document tracks all planned features and enhancements for the VisualOS sign
 - Toast notification system (`@mantine/notifications` + reusable `notify` utility)
 - Docker hot-reload for development
 - Design approval system (internal): Drive file picker, version history, approve/request changes, per-version and project-level tasks
+- Client portal — design approval (customer-facing): token-gated portal, PDF proxy, MFA-verified approval, change requests with feedback items, per-project contacts, Gmail auto-labelling, T&Cs checkbox, portal audit log
 - Task management: reusable TaskList + TaskModal components with assignee, due date, priority, status
 - URL-synced project tabs (React Router)
 - My Tasks page: grouped/sorted/filtered task view, standalone tasks, sidebar badge with incomplete count
@@ -177,64 +178,38 @@ model Task {
 ---
 
 ### 4. Google Drive Design Approval System - Phase 2 (Customer-Facing)
-**Status:** 📋 Planned  
-**Priority:** High  
-**Labels:** `feature`, `google-api`, `customer-facing`, `high-priority`, `security`
+**Status:** ✅ Complete
+**Priority:** High
+**Labels:** `feature`, `google-api`, `customer-facing`, `security`
 
-**Description:**  
-Phase 1 (internal approval workflow) is complete and shipped. Phase 2 adds the public customer-facing flow with magic link emails and token-based authentication.
-
-#### Workflow
-
-**Phase 1 (complete):** Internal team can upload Drive PDFs, assign version numbers, approve or request changes, and manage per-version and project-level tasks.
-
-**Phase 2: Customer Flow**
-1. Team member sends design to customer from VisualOS
-2. Email sent to customer with tokenised review link (magic link)
-3. Customer views PDF in browser (embedded, no download)
-4. Customer clicks "Approve" → confirmation email with 6-digit code or second magic link
-5. Customer confirms → design marked approved, project moves to production
-6. Studio notified via email with audit trail (IP, timestamp, email)
-
-#### Customer-Facing Pages
-
-**Review Page:** `/design-review/:reviewToken`
-- PDF embed viewer (Google Drive or PDF.js)
-- Feedback textarea (optional)
-- "Request Changes" → saves feedback, status = changes_requested
-- "Approve Design" → generates approvalToken, sends confirmation email
-
-**Approval Confirmation:** `/design-approve/:approvalToken`
-- Design preview/thumbnail
-- Confirmation message
-- "Confirm Approval" button → marks approved, triggers production
-- Token expiry handling (72 hours)
-
-#### Database additions required
-- `reviewToken` — long-lived view/review token
-- `approvalToken` — 72-hour expiry token
-- `customerEmail`, `customerName`
-- `approvedAt`, `approvalIp`, `userAgent`
-- `lastViewedAt`, `feedback`
-
-#### Email Notifications
-1. To customer: "Your design is ready for review" (review link)
-2. To customer: "Please confirm your approval" (approval link, 72hr expiry)
-3. To studio: "Customer requested changes on [Project]" (with feedback)
-4. To studio: "Design approved by [Customer] for [Project]" (audit details)
-
-**Acceptance Criteria:**
-- [ ] Database migration adds customer/token fields to `DesignFile`
-- [ ] Token generation (review + approval)
-- [ ] Email send from team interface
-- [ ] Public routes for customer pages (token auth only)
-- [ ] PDF embed viewer (no download)
-- [ ] Approval token expiry (72 hours)
-- [ ] IP + user agent logging on approval
-- [ ] Auto-advance project to production on approval
-- [ ] Resend email functionality
-- [ ] Audit trail visible in team interface
-- [ ] Mobile-responsive customer pages
+**Completed:**
+- [x] `ProjectContact` model — per-project contacts (name, email, isPrimary); CRUD via `/api/projects/:id/contacts`
+- [x] `DesignApprovalToken` model — 96-char hex token, 14-day expiry, one per contact per file send
+- [x] `DesignApproval` model — MFA-verified approval record; stores 6-digit code + expiry, final status
+- [x] `PortalAuditLog` model — structured event log (token_accessed, mfa_sent, mfa_verified, approval_submitted, feedback_submitted, token_reissued) with IP + user agent
+- [x] `Task` extended: `source`, `sourceReferenceId`, `portalTokenId`; feedback tasks created as `draft`, promoted to `pending` on submission; all task queries exclude drafts
+- [x] `DesignFile` extended: `approvalSentAt`, `sentByUserId`; `approvalStatus` removed (redundant — use `status` + `approvalSentAt`)
+- [x] `SystemSettings` extended: `termsUrl` (seeded with Notion T&C URL); admin can update via Settings page
+- [x] `utils/sendEmail.ts` — Gmail API via `studio@vil.nz`; RFC 2047 subject encoding; base64 MIME; auto-labels with `VisualOS/JOB-{id}` (MFA emails excluded); 4 templates
+- [x] `utils/portalAudit.ts` — non-fatal structured event logging
+- [x] `POST /api/projects/:id/design-files/:fileId/send-approval` — generates tokens, sends emails, falls back to Xero contact if no project contacts
+- [x] `GET /api/projects/:id/design-files/:fileId/approvals` — returns tokens with nested approvals
+- [x] `GET /portal/:token` — validates token, returns portal data including `termsUrl` and saved feedback items
+- [x] `GET /portal/:token/pdf` — streams Drive file using sentBy user's refresh token (no public Drive access)
+- [x] `POST /portal/:token/request-mfa` — generates 6-digit code, sends MFA email (no job label)
+- [x] `POST /portal/:token/verify-mfa` — validates code + expiry
+- [x] `POST /portal/:token/approve` — requires MFA; updates `DesignFile.status`; promotes draft feedback tasks to pending; sends team notification email with link to project design tab
+- [x] `POST /portal/:token/feedback` + `PATCH` + `DELETE` — feedback items saved as draft tasks; editable until approval submitted
+- [x] `POST /portal/:token/reissue` — issues new token for expired links
+- [x] Frontend: `Portal.page.tsx` — three-mode state machine (idle → changes → complete); restores state from server on load
+- [x] Frontend: `ApprovalActions` — Approve/Request Changes buttons; T&Cs checkbox (disabled Approve until ticked)
+- [x] Frontend: `MFAConfirmationModal` — 6-digit PinInput, verify then approve
+- [x] Frontend: `FeedbackEntryList` — inline edit/delete; `readOnly` prop for post-submission display
+- [x] Frontend: `FeedbackEntryForm`, `DesignViewer`, `PortalLayout`, `TokenExpiredScreen`
+- [x] Frontend: `ProjectContactsPanel` in project Details tab
+- [x] Frontend: `DesignTab` updated — Send for Approval button, per-contact approval status badges
+- [x] Frontend: portal route outside AppShell in `App.tsx`
+- [x] Frontend: admin Settings page — editable T&Cs URL field
 
 ---
 
@@ -533,6 +508,7 @@ Base Job Folder (set by admin in Settings)
 
 ### ✅ Recently Completed
 
+- **Client Portal — Design Approval (Phase 2)** — Token-gated portal for client design review and approval. Per-project contacts, 96-char hex tokens (14-day expiry), PDF proxy via Drive, MFA 6-digit code, feedback items as draft tasks, audit log, Gmail auto-labelling, T&Cs checkbox, team notification email with direct link to project design tab
 - **Admin Role + System Settings** — `isAdmin` on User (bren + bev seeded); `SystemSettings` singleton model; admin-only Settings page section with Drive folder picker to set base job folder; `ensureAdmin` middleware
 - **Drive Folder Picker Smart Defaults** — project picker opens in client's Drive folder; Brand Assets picker opens in system base folder; `DrivePickerButton` extracted as generic reusable component
 - **Silent Drive Token Refresh** — `/auth/drive-token` backend endpoint exchanges stored refresh token; `getDriveAccessToken()` frontend utility used by all picker components; no Google popup required
@@ -558,8 +534,7 @@ Base Job Folder (set by admin in Settings)
 ### High Priority (Ready to Build)
 
 1. Calendar Integration
-2. Google Drive Design Approval - Phase 2 (Customer-Facing)
-3. Shop Floor Workflow Viewer *(depends on Calendar Integration)*
+2. Shop Floor Workflow Viewer *(depends on Calendar Integration)*
 
 ### Medium Priority
 
@@ -765,4 +740,4 @@ For common recurring job types (vehicle wraps, shop signage, event banners, etc.
 
 ---
 
-**Last Updated:** March 1, 2026 (Added: Shop Floor Workflow Viewer, Business Intelligence Dashboard, Field View Map, Install Docket Mobile View, Client Portal, Project Templates)
+**Last Updated:** March 1, 2026 (Completed: Client Portal Design Approval Phase 2 — token-gated portal, MFA, feedback tasks, audit log, T&Cs, Gmail labelling)
