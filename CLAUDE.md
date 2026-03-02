@@ -40,32 +40,49 @@ sudo docker compose up --build -d
 ## Frontend Commands (`projects-frontend/`)
 
 ```bash
-npm run dev             # Vite dev server at http://localhost:5173
-npm run build           # TypeScript check + Vite build
-npm run preview         # Preview production build
+yarn dev             # Vite dev server at http://localhost:5173
+yarn build           # TypeScript check + Vite build
+yarn preview         # Preview production build
 
-npm run test            # Full suite: typecheck + prettier + lint + vitest + build
-npm run vitest          # Unit tests only
-npm run vitest:watch    # Watch mode
-npm run typecheck       # tsc --noEmit
-npm run lint            # ESLint + StyleLint
-npm run prettier:write  # Auto-fix formatting
+yarn test            # Full suite: typecheck + prettier + lint + vitest + build
+yarn vitest          # Unit tests only
+yarn vitest:watch    # Watch mode
+yarn typecheck       # tsc --noEmit
+yarn lint            # ESLint + StyleLint
+yarn prettier:write  # Auto-fix formatting
 
-npm run storybook       # Component explorer at port 6006
+yarn storybook       # Component explorer at port 6006
 ```
+
+> Note: frontend uses **yarn**, backend uses **npm**.
 
 ## Architecture
 
 ### Backend (`src/`)
 
 - **`index.ts`**: Express app entry. Configures CORS, session cookies, Passport Google OAuth, mounts all routes. Contains `allowedEmails` hardcoded allowlist.
-- **`routes/`**: One file per domain — `projectRoutes`, `contactRoutes`, `taskRoutes`, `noteRoutes`, `designFileRoutes`, `gmailRoutes`, `xeroRoutes`, `authRoutes`, `settingsRoutes`, `userRoutes`, `projectContactRoutes`, `portalRoutes`.
+- **`routes/`**: One file per domain:
+  - `projectRoutes` — CRUD + Drive folder creation + DELETE (cascading)
+  - `contactRoutes` — Xero contact sync + webhook
+  - `taskRoutes` — task CRUD
+  - `noteRoutes` — project notes
+  - `designFileRoutes` — Drive-linked design files + approval send
+  - `gmailRoutes` — Gmail thread list/view + search + label-thread
+  - `xeroRoutes` — Xero OAuth + project/contact sync
+  - `authRoutes` — Google OAuth, session status, Drive token exchange
+  - `settingsRoutes` — SystemSettings CRUD (admin-gated for writes)
+  - `userRoutes` — current user info
+  - `projectContactRoutes` — per-project contacts (`/api/projects/:id/contacts`)
+  - `portalRoutes` — public token-gated portal (no auth middleware) — validate token, PDF proxy, request-mfa, verify-mfa, approve, feedback CRUD, reissue. Mounted at `/portal` (no `/api` prefix).
+  - `featureRequestRoutes` — staff feature request submissions (`GET`/`POST` any user, `PATCH` admin only)
+  - `surveyRoutes` — site survey + photo upload to Drive
+  - `deliverableRoutes` — deliverables CRUD
+  - `completionPhotoRoutes` — completion photo upload to Drive
+  - `materialRoutes` — materials/products
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
-- **`routes/portalRoutes.ts`**: Public token-gated portal routes (no auth middleware) — validate token, PDF proxy, request-mfa, verify-mfa, approve, feedback CRUD, reissue. Mounted at `/portal` (no `/api` prefix).
-- **`routes/projectContactRoutes.ts`**: CRUD for per-project contacts (`/api/projects/:id/contacts`).
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
 - **`utils/ensureAdmin.ts`**: Admin-only middleware — returns 403 if `req.user.isAdmin` is falsy.
-- **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded). Contains 4 HTML templates: `approvalRequestEmailHtml`, `newTokenEmailHtml`, `mfaCodeEmailHtml`, `approvalConfirmedEmailHtml`.
+- **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded). Fetches editable body/subject from `EmailTemplate` DB records; falls back to hardcoded HTML if template not found.
 - **`utils/portalAudit.ts`**: `logPortalEvent()` — writes structured events to `PortalAuditLog` (token_accessed, mfa_sent, mfa_verified, approval_submitted, etc). Failures are non-fatal.
 - **`prisma/schema.prisma`**: Source of truth for data models.
 
@@ -77,10 +94,29 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
 
 ### Frontend (`src/`)
 
-- **`main.tsx` → `App.tsx` → `Shell.page.tsx`**: App entry chain. `App.tsx` splits into two top-level routes: `/portal/:token` (no AppShell, no auth — uses `Portal.page.tsx`) and `/*` (full app inside `ShellPage`). `Shell.page.tsx` owns the `AppShell` layout, navigation, and all authenticated routes.
-- **`pages/`**: Full-page route components. `Dashboard.page.tsx` is the Kanban board; `Project.tsx` is the multi-tab project detail view; `Portal.page.tsx` is the public client portal.
-- **`components/`**: Reusable UI — `Tasks/TaskList`, `Tasks/TaskModal`, `Project/Tabs/DesignTab`, `Project/Tabs/EmailTab`, `PhoneMessageModal`, `DrivePickerButton`, `Project/ProjectContactsPanel` (add/edit/delete per-project contacts).
-- **`components/Portal/`**: Portal-specific components — `PortalLayout`, `DesignViewer` (PDF iframe proxy), `ApprovalActions` (Approve/Request Changes buttons + T&Cs checkbox), `MFAConfirmationModal` (6-digit PinInput), `FeedbackEntryList` (editable or read-only), `FeedbackEntryForm`, `TokenExpiredScreen`.
+- **`main.tsx` → `App.tsx` → `Shell.page.tsx`**: App entry chain. `App.tsx` splits into two top-level routes: `/portal/:token` (no AppShell, no auth — uses `Portal.page.tsx`) and `/*` (full app inside `ShellPage`). `Shell.page.tsx` owns the `AppShell` layout, navigation, all authenticated routes, and renders `FeatureRequestModal` + `PhoneMessageModal` globally.
+- **`pages/`**: Full-page route components:
+  - `Home.page.tsx` — searchable/filterable/sortable project list table; rows stack on mobile; X button on each row to permanently delete a project
+  - `Dashboard.page.tsx` — Kanban board (drag-and-drop status columns)
+  - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned
+  - `Portal.page.tsx` — public client portal (no auth)
+  - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Email Templates (admin only), Backlog (all users), Releases (all users)
+- **`components/`**: Reusable UI:
+  - `Tasks/TaskList`, `Tasks/TaskModal`, `Tasks/TaskItem`
+  - `Project/Tabs/DesignTab` — design file upload + approval send
+  - `Project/Tabs/EmailTab` — Gmail thread viewer + find & link emails panel
+  - `Project/Tabs/SurveyTab` — site survey with address autocomplete, notes, and photo capture (camera via `getUserMedia` or file upload)
+  - `Project/Tabs/CalendarTab`, `CompletionPhotosTab`, `DeliverablesTab`
+  - `Project/DriveFolderPicker` — Drive folder picker + auto-create folder hierarchy
+  - `Project/ProjectContactsPanel` — per-project contacts (add/edit/delete)
+  - `Project/DeleteProjectModal` — permanent delete confirmation modal
+  - `PhoneMessageModal` — take-a-message form
+  - `DrivePickerButton` — Google Picker integration
+  - `FeatureRequestModal` — staff idea/feedback submission (auto-captures user + page URL)
+  - `Settings/BacklogPanel` — feature request list; admins can archive and edit inline
+  - `Settings/ReleasesPanel` — static changelog grouped by date
+  - `Settings/EmailTemplatesPanel` — admin editable email templates with shortcode preview
+- **`components/Portal/`**: Portal-specific — `PortalLayout`, `DesignViewer` (PDF iframe proxy), `ApprovalActions` (T&Cs checkbox + Approve/Request Changes), `MFAConfirmationModal` (6-digit PinInput), `FeedbackEntryList`, `FeedbackEntryForm`, `TokenExpiredScreen`.
 - **`types/`**: Shared TypeScript interfaces (`IProject`, `ITask`, `IDesignFile`, `Contact`, `SystemSettings`, `IProjectContact`, `IDesignApproval`, `IDesignApprovalToken`, `IFeedbackItem`).
 - **`utils/notifications.ts`**: Wrapper around Mantine notifications for toast messages.
 - **`utils/driveToken.ts`**: `getDriveAccessToken()` — calls `GET /auth/drive-token` to exchange the stored refresh token for a short-lived Drive access token.
@@ -90,18 +126,24 @@ State management is local `useState`/`useEffect` per component — no global sta
 
 ### Data Models (Prisma)
 
-Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemSettings`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`.
+Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`.
+
 - `User` has `isAdmin Boolean @default(false)` — `bren@vil.nz` and `bev@vil.nz` are seeded as admins via migration
 - `Project` has a FK to `Contact` (Xero contact), plus optional `driveFolderId`/`driveFolderName`
 - `Project.status` valid values: `New`, `Design`, `Quote`, `With Customer`, `Production`, `Install`, `Invoice`, `Archived` — Kanban shows all except `New`
 - `Task` can be standalone or linked to `Project` or `DesignFile`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
 - `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent
-- `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder) and `termsUrl` (T&Cs link shown in client portal approval flow)
+- `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder), `templateDriveFileId`/`templateDriveFileName` (AI template file to copy on folder creation), and `termsUrl` (T&Cs link shown in client portal approval flow)
+- `EmailTemplate` — editable email templates keyed by slug (e.g. `approval_request`); body supports shortcodes like `[clientName]`, `[version]`, `[portalLink]`
 - `ProjectContact` — per-project contacts (name, email, isPrimary); used to send design approval emails
 - `DesignApprovalToken` — 96-char hex token (14-day expiry) sent to each contact for portal access; one per contact per design file send
 - `DesignApproval` — MFA-verified approval record per token; stores 6-digit code, expiry, verified status, and final `status` (`approved`/`changes_requested`)
 - `PortalAuditLog` — structured event log for all portal activity (token_accessed, mfa_sent, mfa_verified, approval_submitted, etc) with IP and user agent
+- `FeatureRequest` — staff-submitted feature requests; fields: `description`, `pageUrl`, `userId`, `userName` (denormalised), `status` (`open`/`archived`)
+- `SiteSurvey` — one per project; stores address, lat/lng, and notes; has `SurveyPhoto` children (stored in Google Drive)
+- `Deliverable` — physical sign component linked to a project; tracks type, dimensions, material, laminate, and optional cutting diagram Drive file
+- `Material` — substrate/vinyl/laminate catalogue; optionally linked to Xero items
 - Xero sync only fetches `INPROGRESS` and `CLOSED` — Xero Projects API does not accept `DRAFT` as a states filter
 
 ### External Integrations
@@ -110,9 +152,10 @@ Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemS
 |---|---|---|
 | Google OAuth | Login + Gmail + Drive scopes | Passport `passport-google-oauth20` |
 | Xero API | Projects, contacts, invoices | `xero-node` SDK, tokens on User |
-| Gmail API | Thread viewer in project Email tab | googleapis, shared `studio@vil.nz` account |
-| Google Drive | Design file uploads + file picker | googleapis |
+| Gmail API | Thread viewer + find & link in project Email tab | googleapis, shared `studio@vil.nz` account |
+| Google Drive | Design file uploads, survey/completion photos, folder creation | googleapis |
 | Google Picker API | Drive folder picker in project Details tab, Brand Assets tab, Settings page | Backend `/auth/drive-token` exchanges stored refresh token; `VITE_GOOGLE_API_KEY` (browser key) required |
+| Google Maps / Places API | Site address autocomplete in Survey tab | `@googlemaps/js-api-loader`, Places API (New) |
 | Xero Webhook | Real-time contact sync | HMAC-SHA256 verified, no session |
 
 ## Environment Variables
@@ -151,6 +194,7 @@ VITE_GOOGLE_API_KEY=        # set via GH Actions secret
 
 - **Always work on a feature branch.** Never commit directly to `main` (backend) or `master` (frontend). Branch from `main`/`master` using Gitflow naming: `feature/FeatureName`, `fix/BugDescription`, `chore/TaskName`. Example: `feature/CalendarIntegration`.
 - **Write tests for every new function/route.** Backend: add a test in a `*.test.ts` file alongside the route. Frontend: add a Vitest unit test for any new utility or hook.
+- **Prisma migration drift**: the `session` table (created by `connect-pg-simple`) causes drift warnings with `prisma migrate dev`. Workaround: create the migration SQL manually → apply via `psql` → mark applied with `npx prisma migrate resolve --applied <name>`.
 
 ## Installing New npm Packages (Backend)
 
@@ -170,7 +214,7 @@ sudo /usr/local/bin/docker exec express_api npm install     # production (Synolo
 
 Services:
 - **PostgreSQL 15** on port 5433
-- **Express API** on port 3001
+- **Express API** on port 3001 (service name: `express-api`)
 - **Prisma Studio** on port 5556
 
 The app uses different `DATABASE_URL` values: `localhost:5433` when running outside Docker, `postgres:5432` (internal hostname) when running inside Docker (`APP_DATABASE_URL`).

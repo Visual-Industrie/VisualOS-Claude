@@ -1,16 +1,14 @@
-# Claude project files for VisualOS
+# VisualOS — Working Docs
 
-This is all of the docs generated for and by Claude for the VisualOS - Sign Shop Manager software.
+Planning documents, specs, and AI context files for the VisualOS Sign Shop Manager project.
 
-## Main files
+## Key files
 
-- [Claude.md](CLAUDE.md)
-- [Backlog](backlog.md)
-
-## Other files
-
-- [Deliverable & project creation spec](deliverables-and-project-creation.md) - mostly done
-- [Manual Notes](manual-notes.md) - stuff I've thought off while outside of Claude limits.
-- [Materials spec](materials-spec.md) - WIP / deprecated maybe?
-- [Client approval spec (done)](SPEC-client-portal-approval-workflow.md)
-- [Some "Next" features](visualos-next-features-spec.md) (might be done)
+| File | Purpose |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | Architecture reference and instructions for Claude Code |
+| [backlog.md](backlog.md) | Feature backlog |
+| [SPEC-client-portal-approval-workflow.md](SPEC-client-portal-approval-workflow.md) | Client portal design approval spec (implemented) |
+| [deliverables-and-project-creation.md](deliverables-and-project-creation.md) | Deliverables tab and project creation spec (implemented) |
+| [visualos-next-features-spec.md](visualos-next-features-spec.md) | Forward-looking feature ideas |
+| [manual-notes.md](manual-notes.md) | Miscellaneous notes |
