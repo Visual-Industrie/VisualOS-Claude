@@ -130,7 +130,7 @@ Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemS
 
 - `User` has `isAdmin Boolean @default(false)` — `bren@vil.nz` and `bev@vil.nz` are seeded as admins via migration
 - `Project` has a FK to `Contact` (Xero contact), plus optional `driveFolderId`/`driveFolderName`
-- `Project.status` valid values: `New`, `Design`, `Quote`, `With Customer`, `Production`, `Install`, `Invoice`, `Archived` — Kanban shows all except `New`
+- `Project.status` valid values: `New`, `Design`, `Quote`, `With Customer`, `Production`, `Install`, `Invoice`, `Archived`, `On Hold`, `Completed`, `Abandoned` — Kanban shows all except `New`, `Completed`, and `Abandoned`. Setting `Completed` or `Abandoned` also closes the project in Xero.
 - `Task` can be standalone or linked to `Project` or `DesignFile`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
 - `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent
