@@ -193,6 +193,7 @@ VITE_GOOGLE_API_KEY=        # set via GH Actions secret
 ## Development Standards
 
 - **Always work on a feature branch.** Never commit directly to `main` (backend) or `master` (frontend). Branch from `main`/`master` using Gitflow naming: `feature/FeatureName`, `fix/BugDescription`, `chore/TaskName`. Example: `feature/CalendarIntegration`.
+- **Always update the releases list when shipping.** Every time a feature or fix is merged, add it to `projects-frontend/src/components/Settings/ReleasesPanel.tsx` — prepend new items to the matching date entry (or create a new entry if the date is new). Write entries in plain English from the user's perspective. Commit this in the same PR as the feature.
 - **Write tests for every new function/route.** Backend: add a test in a `*.test.ts` file alongside the route. Frontend: add a Vitest unit test for any new utility or hook.
 - **Prisma migration drift**: the `session` table (created by `connect-pg-simple`) causes drift warnings with `prisma migrate dev`. Workaround: create the migration SQL manually → apply via `psql` → mark applied with `npx prisma migrate resolve --applied <name>`.
 
