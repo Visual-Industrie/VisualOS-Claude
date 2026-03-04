@@ -25,7 +25,7 @@ This document tracks all planned features and enhancements for the VisualOS sign
 - Kanban dashboard view with drag & drop (status updates via PATCH, optimistic UI, drop zone highlighting)
 - Toast notification system (`@mantine/notifications` + reusable `notify` utility)
 - Docker hot-reload for development
-- Design approval system (internal): Drive file picker, version history, approve/request changes, per-version and project-level tasks
+- Design approval system (internal): Drive file picker, version history, approve/request changes, per-version and project-level tasks, scheduled approval emails (server-side 60s poll, NZDT/NZST-aware)
 - Client portal — design approval (customer-facing): token-gated portal, PDF proxy, MFA-verified approval, change requests with feedback items, per-project contacts, Gmail auto-labelling, T&Cs checkbox, portal audit log
 - Task management: reusable TaskList + TaskModal components with assignee, due date, priority, status
 - URL-synced project tabs (React Router)
@@ -508,6 +508,7 @@ Base Job Folder (set by admin in Settings)
 
 ### ✅ Recently Completed
 
+- **Scheduled Design Approval Emails** — Clock icon on design file cards opens a DateTimePicker to queue the approval email for a future time. `DesignFile.scheduledSendAt` field; server-side 60s poll in `approvalScheduler.ts` fires emails and sets `approvalSentAt`. Cancel X revokes unused tokens. Timezone-aware (NZ local → UTC ISO before sending to backend).
 - **Client Portal — Design Approval (Phase 2)** — Token-gated portal for client design review and approval. Per-project contacts, 96-char hex tokens (14-day expiry), PDF proxy via Drive, MFA 6-digit code, feedback items as draft tasks, audit log, Gmail auto-labelling, T&Cs checkbox, team notification email with direct link to project design tab
 - **Admin Role + System Settings** — `isAdmin` on User (bren + bev seeded); `SystemSettings` singleton model; admin-only Settings page section with Drive folder picker to set base job folder; `ensureAdmin` middleware
 - **Drive Folder Picker Smart Defaults** — project picker opens in client's Drive folder; Brand Assets picker opens in system base folder; `DrivePickerButton` extracted as generic reusable component
@@ -740,4 +741,4 @@ For common recurring job types (vehicle wraps, shop signage, event banners, etc.
 
 ---
 
-**Last Updated:** March 1, 2026 (Completed: Client Portal Design Approval Phase 2 — token-gated portal, MFA, feedback tasks, audit log, T&Cs, Gmail labelling)
+**Last Updated:** March 5, 2026 (Completed: Scheduled Design Approval Emails — clock icon, DateTimePicker, server-side 60s scheduler, cancel/revoke, NZ timezone fix)
