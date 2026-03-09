@@ -245,3 +245,13 @@ Both repos deploy automatically via GitHub Actions on push to `main`/`master`.
 3. Enable passwordless sudo for docker: `echo "visual ALL=(ALL) NOPASSWD: /usr/local/bin/docker" | sudo tee /etc/sudoers.d/visual-docker`
 4. Add `StrictModes no` to `/etc/ssh/sshd_config` (Synology home dir permissions conflict with SSH defaults)
 5. Add private key to GitHub Secrets as `NAS_SSH_KEY` on both repos
+
+## Roadmap Notes (as of March 2026)
+
+VisualOS is being designed with multi-tenancy in mind for future productisation. When building new features, keep the following in mind:
+
+- **Org layer coming**: All new models should be designed to accept an `organisationId` FK when multi-tenancy (#32) is implemented. Don't hardcode Visual Industrie assumptions.
+- **Integration credentials**: Moving toward per-org credential storage in DB (encrypted). Env vars remain as fallback for single-tenant mode.
+- **Email/calendar abstraction**: Gmail and Google Calendar are the current providers, but the intent is to make these swappable per org. Avoid tight coupling to Google-specific APIs where possible.
+- **Scaffolding system**: A data-driven project scaffolding wizard (#31) is planned. New deliverable types should be designed with configurable templates in mind.
+- **Quote intake**: A public `POST /api/quote-requests` endpoint (#30) will accept form submissions from `visualindustrie.co.nz`. Origin-locked. Contact fuzzy matching against existing records.

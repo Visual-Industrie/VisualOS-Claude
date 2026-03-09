@@ -748,4 +748,40 @@ For common recurring job types (vehicle wraps, shop signage, event banners, etc.
 
 ---
 
+### 28 Pickup / Job Complete Notification Emails 
+
+— 🔴 High, quick-win. Status change triggers email to primary contact via existing sendEmail.ts. Template editable in Settings.
+
+### 29 Client Communication Preferences
+
+ — 🔴 High. communicationPreference enum (email/sms/phone) on ProjectContact. Phone = staff reminder task. SMS via Twilio deferred.
+
+### 30 WordPress Quote Request Form → VisualOS API
+
+ — 🔴 High. Public POST /api/quote-requests, origin-locked to visualindustrie.co.nz. Fuzzy contact match on business name + email. Captures contact person name separately. Creates lead in New status.
+
+### 31 Project Scaffolding / Decision Tree Wizard
+
+ — Medium, design phase. JSON-driven decision tree per org, wizard UI, template editor, preset industry templates. Spec before build.
+
+### 32 Multi-Tenancy / Organisation Layer
+
+ — Medium, architecture. Organisation model + organisationId FK across all tables. Start with single org for Visual Industrie. Design all new features with this in mind.
+
+### 33 Admin Integration Settings Page
+
+ — Medium. UI for org admins to manage API credentials. Encrypted at rest.
+
+### 34 Transactional Email Provider
+
+ — Low, future. SendGrid/Mailgun when external customers onboard.
+
+### 35 Email / Calendar Provider Abstraction
+
+ — Low, future. Provider-agnostic interface for Gmail/Outlook/iCloud.
+
+### 36 File Storage Provider Abstraction
+
+ — Low, future. Provider-agnostic storage layer beyond Google Drive.
+
 **Last Updated:** March 10, 2026 (Completed: Calendar Integration core — Schedule tab, master Calendar page, GCal overlay with deduplication + all-day date fix; camera interface on Completion Photos tab; Home page search UX improvements)
