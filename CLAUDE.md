@@ -78,6 +78,7 @@ yarn storybook       # Component explorer at port 6006
   - `surveyRoutes` — site survey + photo upload to Drive
   - `deliverableRoutes` — deliverables CRUD
   - `completionPhotoRoutes` — completion photo upload to Drive
+  - `calendarRoutes` — Google Calendar list + GCal events overlay (`/api/calendar/calendars`, `/api/calendar/events`); per-project schedule CRUD (`/api/projects/:id/schedule`); all-projects schedule (`/api/schedule`); syncs events to Google Calendar via `studio@vil.nz`
   - `materialRoutes` — materials/products
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
@@ -96,17 +97,20 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
 
 - **`main.tsx` → `App.tsx` → `Shell.page.tsx`**: App entry chain. `App.tsx` splits into two top-level routes: `/portal/:token` (no AppShell, no auth — uses `Portal.page.tsx`) and `/*` (full app inside `ShellPage`). `Shell.page.tsx` owns the `AppShell` layout, navigation, all authenticated routes, and renders `FeatureRequestModal` + `PhoneMessageModal` globally.
 - **`pages/`**: Full-page route components:
-  - `Home.page.tsx` — searchable/filterable/sortable project list table; rows stack on mobile; X button on each row to permanently delete a project
+  - `Home.page.tsx` — searchable/filterable/sortable project list table; rows stack on mobile; X button on each row to permanently delete a project; search is NOT persisted (other filters are); search field has X clear button + ESC-to-clear
   - `Dashboard.page.tsx` — Kanban board (drag-and-drop status columns)
   - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned
   - `Portal.page.tsx` — public client portal (no auth)
+  - `CalendarPage.tsx` — master calendar view (all projects); GCal events overlay (public holidays, personal events) deduplicated against VisualOS `googleEventId`; all-day events parsed as local time; clicking VisualOS event shows detail modal with "Open project schedule" link; clicking GCal event opens in Google Calendar; calendar filter dropdown; colour key
   - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Email Templates (admin only), Backlog (all users), Releases (all users)
 - **`components/`**: Reusable UI:
   - `Tasks/TaskList`, `Tasks/TaskModal`, `Tasks/TaskItem`
   - `Project/Tabs/DesignTab` — design file upload + approval send
   - `Project/Tabs/EmailTab` — Gmail thread viewer + find & link emails panel
-  - `Project/Tabs/SurveyTab` — site survey with address autocomplete, notes, and photo capture (camera via `getUserMedia` or file upload)
-  - `Project/Tabs/CalendarTab`, `CompletionPhotosTab`, `DeliverablesTab`
+  - `Project/Tabs/SurveyTab` — site survey with address autocomplete, notes, and photo capture (camera via `getUserMedia` or file upload); 3-phase modal: source picker → live camera → preview + notes
+  - `Project/Tabs/ScheduleTab` — per-project schedule using React Big Calendar; create/edit/delete events; syncs to Google Calendar; GCal overlay (deduped by `googleEventId`); colour key; upcoming + unscheduled lists
+  - `Project/Tabs/CompletionPhotosTab` — completion photo grid + lightbox; same 3-phase camera/upload modal as SurveyTab
+  - `Project/Tabs/CalendarTab`, `DeliverablesTab`
   - `Project/DriveFolderPicker` — Drive folder picker + auto-create folder hierarchy
   - `Project/ProjectContactsPanel` — per-project contacts (add/edit/delete)
   - `Project/DeleteProjectModal` — permanent delete confirmation modal
@@ -131,7 +135,7 @@ Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemS
 - `User` has `isAdmin Boolean @default(false)` — `bren@vil.nz` and `bev@vil.nz` are seeded as admins via migration
 - `Project` has a FK to `Contact` (Xero contact), plus optional `driveFolderId`/`driveFolderName`
 - `Project.status` valid values: `New`, `Design`, `Quote`, `With Customer`, `Production`, `Install`, `Invoice`, `Archived`, `On Hold`, `Completed`, `Abandoned` — Kanban shows all except `New`, `Completed`, and `Abandoned`. Setting `Completed` or `Abandoned` also closes the project in Xero.
-- `Task` can be standalone or linked to `Project` or `DesignFile`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status
+- `Task` can be standalone or linked to `Project` or `DesignFile`; schedule events set `eventType` (design/print/laminate/cut-apply/install/meeting/quote/invoice), `eventCalendarId`, `startTime`, `endTime`, `duration`, `googleEventId`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
 - `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent
 - `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder), `templateDriveFileId`/`templateDriveFileName` (AI template file to copy on folder creation), and `termsUrl` (T&Cs link shown in client portal approval flow)

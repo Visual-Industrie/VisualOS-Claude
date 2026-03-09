@@ -38,6 +38,9 @@ This document tracks all planned features and enhancements for the VisualOS sign
 - Persistent sessions: `connect-pg-simple` PostgreSQL session store — logins survive backend restarts/rebuilds
 - Silent Drive token refresh: `getDriveAccessToken()` utility + `/auth/drive-token` backend endpoint
 - New Project button in sidebar, Home page, and contact detail page (contact pre-fills form)
+- Calendar & Schedule system: per-project Schedule tab (React Big Calendar), master Calendar page, GCal events overlay (public holidays, personal events), Google Calendar CRUD sync, deduplication of VisualOS-created events
+- Site survey: camera interface for photo capture (`getUserMedia`, rear-facing preferred) + file upload; same camera UI on Completion Photos tab
+- Home page: search not persisted across sessions; X clear button + ESC key to clear search field
 
 ---
 
@@ -91,9 +94,9 @@ This document tracks all planned features and enhancements for the VisualOS sign
 ---
 
 ### 3. Calendar Integration with Google Calendar
-**Status:** ⭐ Fully Specced - Ready to Build  
-**Priority:** High  
-**Labels:** `feature`, `calendar`, `google-api`, `high-priority`
+**Status:** ✅ Complete (core) — GCal overlay + deduplication shipped March 2026
+**Priority:** High
+**Labels:** `feature`, `calendar`, `google-api`
 
 **Description:**  
 Build a comprehensive calendar system integrated with our shared Google Calendar (`studio@vil.nz`) to manage project tasks, schedules, and staff assignments.
@@ -160,20 +163,20 @@ model Task {
 - Bi-directional sync between VisualOS database and Google Calendar
 - Google Calendar API for CRUD operations
 
-**Acceptance Criteria:**
-- [ ] Backend: New `/api/calendar` routes for CRUD operations
-- [ ] Backend: Fetch available calendars from `studio@vil.nz`
-- [ ] Backend: Create/update/delete events in Google Calendar
-- [ ] Backend: Sync events to/from Google Calendar
-- [ ] Database: `Task` table migration created and deployed
-- [ ] Frontend: "Schedule" tab added to project view
-- [ ] Frontend: React Big Calendar integrated with Mantine styling
-- [ ] Frontend: Event creation form with type selection and staff assignment
-- [ ] Frontend: Suggested durations based on event type
-- [ ] Frontend: Master calendar view (embedded Google Calendar)
-- [ ] Frontend: Kanban board filtered by staff/all tasks
-- [ ] Events link back to VisualOS project (in event description)
-- [ ] Bi-directional sync working (changes in Google Calendar reflect in VisualOS)
+**Completed:**
+- [x] Backend: `calendarRoutes.ts` — `/api/calendar/calendars` (list studio@vil.nz calendars), `/api/calendar/events` (GCal overlay by date range), per-calendar failure logging
+- [x] Backend: `/api/projects/:id/schedule` — CRUD for schedule events (Tasks with `eventType`); creates/updates/deletes corresponding Google Calendar events
+- [x] Backend: `/api/schedule` — all events across all projects (used by master Calendar page)
+- [x] Backend: Create/update/delete events in Google Calendar (via `studio@vil.nz` refresh token)
+- [x] Database: `Task` extended with `eventType`, `eventCalendarId`, `eventAssignee`, `startTime`, `endTime`, `duration`, `googleEventId`
+- [x] Frontend: `ScheduleTab.tsx` — per-project Schedule tab with React Big Calendar; event creation/edit modal; suggested durations per type; calendar colour key; upcoming + unscheduled event lists
+- [x] Frontend: `CalendarPage.tsx` — master calendar view with GCal events overlay (public holidays, personal events); calendar filter dropdown; colour-coded by calendar; deduplication (VisualOS-created events not shown twice); all-day events parsed as local time (dayjs); clicking VisualOS event shows detail modal with "Open project schedule" button; clicking GCal event opens in Google Calendar
+- [x] Events include VisualOS link in Google Calendar description
+- [x] GCal overlay error handling: per-calendar failures logged; frontend errors surfaced via console.warn
+
+**Deferred / not built:**
+- [ ] Kanban board filtered by staff/all tasks
+- [ ] Bi-directional sync (changes made directly in Google Calendar reflected back in VisualOS)
 
 ---
 
@@ -508,6 +511,10 @@ Base Job Folder (set by admin in Settings)
 
 ### ✅ Recently Completed
 
+- **GCal Events Overlay — fixes & deduplication** — Backend now logs per-calendar failures (403s etc.) instead of silently dropping them. Frontend: empty `catch {}` replaced with `console.warn`; VisualOS-created events deduplicated (filtered by `googleEventId` so they don't appear twice); all-day events (public holidays) parsed with dayjs as local time instead of UTC midnight.
+- **Home page search UX** — Search string no longer persisted in localStorage (select filters still are). Added X clear button in the TextInput right section; ESC key clears the field when focused.
+- **Completion Photos — camera interface** — Same 3-phase modal as the Survey tab: source picker (Take photo / Upload file) → live camera view (rear-facing preferred) → preview + notes before uploading.
+- **Calendar page — event detail modal** — Clicking a VisualOS event on the master Calendar page shows a detail modal (title, type badge, project, client, time, notes, assignee) with an "Open project schedule" button. GCal-only events still open in Google Calendar.
 - **Scheduled Design Approval Emails** — Clock icon on design file cards opens a DateTimePicker to queue the approval email for a future time. `DesignFile.scheduledSendAt` field; server-side 60s poll in `approvalScheduler.ts` fires emails and sets `approvalSentAt`. Cancel X revokes unused tokens. Timezone-aware (NZ local → UTC ISO before sending to backend).
 - **Client Portal — Design Approval (Phase 2)** — Token-gated portal for client design review and approval. Per-project contacts, 96-char hex tokens (14-day expiry), PDF proxy via Drive, MFA 6-digit code, feedback items as draft tasks, audit log, Gmail auto-labelling, T&Cs checkbox, team notification email with direct link to project design tab
 - **Admin Role + System Settings** — `isAdmin` on User (bren + bev seeded); `SystemSettings` singleton model; admin-only Settings page section with Drive folder picker to set base job folder; `ensureAdmin` middleware
@@ -741,4 +748,4 @@ For common recurring job types (vehicle wraps, shop signage, event banners, etc.
 
 ---
 
-**Last Updated:** March 5, 2026 (Completed: Scheduled Design Approval Emails — clock icon, DateTimePicker, server-side 60s scheduler, cancel/revoke, NZ timezone fix)
+**Last Updated:** March 10, 2026 (Completed: Calendar Integration core — Schedule tab, master Calendar page, GCal overlay with deduplication + all-day date fix; camera interface on Completion Photos tab; Home page search UX improvements)
