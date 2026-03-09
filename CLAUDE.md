@@ -45,8 +45,9 @@ yarn build           # TypeScript check + Vite build
 yarn preview         # Preview production build
 
 yarn test            # Full suite: typecheck + prettier + lint + vitest + build
-yarn vitest          # Unit tests only
+yarn vitest          # Unit tests only (85 tests across 11 files)
 yarn vitest:watch    # Watch mode
+yarn vitest --reporter=verbose   # Verbose output — shows each test name
 yarn typecheck       # tsc --noEmit
 yarn lint            # ESLint + StyleLint
 yarn prettier:write  # Auto-fix formatting
@@ -55,6 +56,8 @@ yarn storybook       # Component explorer at port 6006
 ```
 
 > Note: frontend uses **yarn**, backend uses **npm**.
+> Test environment: **happy-dom** (replaces jsdom — avoids ERR_REQUIRE_ESM from html-encoding-sniffer).
+> Test files live alongside source files as `*.test.tsx` / `*.test.ts`. Setup in `vitest.setup.mjs`.
 
 ## Architecture
 
