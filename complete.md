@@ -4,6 +4,30 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### Staff Management (March 2026)
+**Labels:** `feature`, `settings`, `admin`, `backend`, `frontend`
+
+Admin-only staff roster. Staff members have a name, email, display colour, optional Xero user mapping, optional Google Calendar mapping, and an active/inactive flag.
+
+**Backend:**
+- `StaffMember` Prisma model with UUID id, unique email, and all above fields
+- Migration `20260310120000_add_staff_members` (applied via psql; session table drift workaround)
+- `GET /api/staff` — list all, active-first then alphabetical (any authed user)
+- `GET /api/staff/xero-users` — proxy Xero org users for dropdown (admin only)
+- `POST /api/staff` — create (admin only); 409 on duplicate email
+- `PATCH /api/staff/:id` — partial update (admin only); 404 on not-found
+- `DELETE /api/staff/:id` — delete (admin only); 404 on not-found
+
+**Frontend:**
+- `StaffPanel` component: list table with colour swatch, name, email, active/inactive badge, edit and delete action icons
+- `StaffModal`: name, email, colour picker, Google Calendar dropdown (fetched from `/api/calendar/calendars`), Xero user dropdown (fetched from `/api/staff/xero-users`), active toggle (edit mode only)
+- Delete confirmation modal
+- Admin-only "Staff" tab added to the Settings page
+- `IStaffMember` and `IXeroUser` types added to `user.ts`
+- 16 Vitest tests (total suite: 101 tests across 13 files)
+
+---
+
 ### Frontend Unit Tests (March 2026)
 **Labels:** `testing`, `infrastructure`, `frontend`
 

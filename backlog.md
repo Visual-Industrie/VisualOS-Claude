@@ -40,7 +40,8 @@ This document tracks planned and in-progress features. Completed items live in `
 - Calendar & Schedule system: per-project Schedule tab (React Big Calendar), master Calendar page, GCal events overlay (public holidays, personal events), Google Calendar CRUD sync, deduplication of VisualOS-created events
 - Site survey: camera interface for photo capture (`getUserMedia`, rear-facing preferred) + file upload; same camera UI on Completion Photos tab
 - Home page: search not persisted; X clear button + ESC key to clear search field; filters persisted in localStorage
-- Frontend unit tests: 85 tests across 11 files (`yarn vitest` / `yarn vitest --reporter=verbose`); `happy-dom` environment
+- Frontend unit tests: 101 tests across 13 files (`yarn vitest` / `yarn vitest --reporter=verbose`); `happy-dom` environment
+- Staff management: admin-only Staff tab in Settings; StaffMember model with name, email, display colour, Xero user mapping, Google Calendar mapping, active/inactive toggle
 
 ---
 
