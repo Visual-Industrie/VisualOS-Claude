@@ -214,11 +214,11 @@ For common recurring job types (vehicle wraps, shop signage, event banners, etc.
 ---
 
 ### 28. Pickup / Job Complete Notification Emails
-**Status:** 📋 Planned
+**Status:** ✅ Shipped — March 10, 2026
 **Priority:** High
 **Labels:** `feature`, `email`, `notifications`
 
-Status change triggers an email to the primary project contact via the existing `sendEmail.ts`. Template editable in Settings → Templates.
+Status change triggers an email to the primary project contact via the existing `sendEmail.ts`. Template editable in Settings → Templates. Notification enabled per stage via "Send notification email" toggle in Settings → Lists.
 
 ---
 
@@ -318,9 +318,8 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 
 ### High Priority (Ready to Build)
 1. **Shop Floor Workflow Viewer** (#22)
-2. **Pickup / Job Complete Notification Emails** (#28) — quick win
-3. **WordPress Quote Request Form → VisualOS API** (#30)
-4. **Client Communication Preferences** (#29)
+2. **WordPress Quote Request Form → VisualOS API** (#30)
+3. **Client Communication Preferences** (#29)
 
 ### Medium Priority
 1. Global App State with React Context (#11)
@@ -356,4 +355,4 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 
 ---
 
-**Last Updated:** March 10, 2026 — Merged frontend unit tests (85 tests, happy-dom); moved all completed items to `complete.md`
+**Last Updated:** March 11, 2026 — Shipped Notify Customer button; contact fallback for notification emails; fixed status-change side effects from project details page; Xero close logging

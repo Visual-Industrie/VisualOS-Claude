@@ -83,12 +83,16 @@ yarn storybook       # Component explorer at port 6006
   - `completionPhotoRoutes` — completion photo upload to Drive
   - `calendarRoutes` — Google Calendar list + GCal events overlay (`/api/calendar/calendars`, `/api/calendar/events`); per-project schedule CRUD (`/api/projects/:id/schedule`); all-projects schedule (`/api/schedule`); syncs events to Google Calendar via `studio@vil.nz`
   - `materialRoutes` — materials/products
+  - `taxonomyRoutes` — CRUD for `TaxonomyItem` (`/api/taxonomy/:type`); PATCH cascades renames to `Project.status` or `Material.category` in a DB transaction; valid types: `project_stage`, `material_category`
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
 - **`utils/ensureAdmin.ts`**: Admin-only middleware — returns 403 if `req.user.isAdmin` is falsy.
-- **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded). Fetches editable body/subject from `EmailTemplate` DB records; falls back to hardcoded HTML if template not found.
+- **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded).
+- **`utils/emailTemplates.ts`**: `renderTemplate(prisma, key, context)` — fetches `EmailTemplate` from DB and interpolates shortcodes. `TEMPLATE_SHORTCODES` registry defines available shortcodes per template key for the admin editor. Composite shortcodes (`[viewApproveButton]`, `[statusBadge]`) are built automatically from context.
 - **`utils/portalAudit.ts`**: `logPortalEvent()` — writes structured events to `PortalAuditLog` (token_accessed, mfa_sent, mfa_verified, approval_submitted, etc). Failures are non-fatal.
 - **`prisma/schema.prisma`**: Source of truth for data models.
+
+**Notification email recipient resolution** (`resolveNotificationRecipient` in `projectRoutes.ts`): resolves in order — (1) primary project contact (`isPrimary=true`), (2) any project contact (first added), (3) organisation contact via `project.xeroContactId → Contact.emailAddress`. Use this helper for all job notification emails. Design approval emails use the same pattern inline in `designFileRoutes.ts`.
 
 Authentication is session-based (express-session + **connect-pg-simple** PostgreSQL session store — sessions persist across backend rebuilds/restarts). Google OAuth tokens are stored on the `User` model for Gmail/Drive access. Xero has a separate OAuth flow stored on the same `User` model.
 
@@ -105,7 +109,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned
   - `Portal.page.tsx` — public client portal (no auth)
   - `CalendarPage.tsx` — master calendar view (all projects); GCal events overlay (public holidays, personal events) deduplicated against VisualOS `googleEventId`; all-day events parsed as local time; clicking VisualOS event shows detail modal with "Open project schedule" link; clicking GCal event opens in Google Calendar; calendar filter dropdown; colour key
-  - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Email Templates (admin only), Backlog (all users), Releases (all users)
+  - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Templates (admin only — email + page templates, Select dropdown picker), EFTPOS (admin only), Staff (admin only), Lists (admin only — taxonomy editor), Backlog (all users), Releases (all users)
 - **`components/`**: Reusable UI:
   - `Tasks/TaskList`, `Tasks/TaskModal`, `Tasks/TaskItem`
   - `Project/Tabs/DesignTab` — design file upload + approval send
@@ -114,6 +118,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Project/Tabs/ScheduleTab` — per-project schedule using React Big Calendar; create/edit/delete events; syncs to Google Calendar; GCal overlay (deduped by `googleEventId`); colour key; upcoming + unscheduled lists
   - `Project/Tabs/CompletionPhotosTab` — completion photo grid + lightbox; same 3-phase camera/upload modal as SurveyTab
   - `Project/Tabs/CalendarTab`, `DeliverablesTab`
+  - `Project/Tabs/DetailsTab` — description editor, status combobox (taxonomy-driven), Save button, Notify Customer button (enabled/disabled by `canNotifyCustomer` flag on current stage), Drive folder picker, project contacts
   - `Project/DriveFolderPicker` — Drive folder picker + auto-create folder hierarchy
   - `Project/ProjectContactsPanel` — per-project contacts (add/edit/delete)
   - `Project/DeleteProjectModal` — permanent delete confirmation modal
@@ -122,9 +127,13 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `FeatureRequestModal` — staff idea/feedback submission (auto-captures user + page URL)
   - `Settings/BacklogPanel` — feature request list; admins can archive and edit inline
   - `Settings/ReleasesPanel` — static changelog grouped by date
-  - `Settings/EmailTemplatesPanel` — admin editable email templates with shortcode preview
+  - `Settings/EmailTemplatesPanel` — admin editable email + page templates; Select dropdown to pick template; shortcode click-to-insert; HTML preview
+  - `Settings/StaffPanel` — staff CRUD (name, email, colour, Xero/GCal mapping, active toggle); admin only
+  - `Settings/TaxonomyPanel` — editable taxonomy sections; `TaxonomySection` is reusable per type; project stages support flags: `showInKanban`, `closesXero`, `sendNotification` (auto-email on status change), `canNotifyCustomer` (enables manual Notify button); badge colours from Mantine colour names
 - **`components/Portal/`**: Portal-specific — `PortalLayout`, `DesignViewer` (PDF iframe proxy), `ApprovalActions` (T&Cs checkbox + Approve/Request Changes), `MFAConfirmationModal` (6-digit PinInput), `FeedbackEntryList`, `FeedbackEntryForm`, `TokenExpiredScreen`.
-- **`types/`**: Shared TypeScript interfaces (`IProject`, `ITask`, `IDesignFile`, `Contact`, `SystemSettings`, `IProjectContact`, `IDesignApproval`, `IDesignApprovalToken`, `IFeedbackItem`).
+- **`types/`**: Shared TypeScript interfaces (`IProject`, `ITask`, `IDesignFile`, `Contact`, `SystemSettings`, `IProjectContact`, `IDesignApproval`, `IDesignApprovalToken`, `IFeedbackItem`, `ITaxonomyItem`).
+- **`types/taxonomy.ts`**: `ITaxonomyItem` interface + `taxonomyLabel(item)` helper (returns `label ?? name`).
+- **`hooks/useTaxonomy.ts`**: `useTaxonomy(type, includeArchived?)` — fetches taxonomy items with module-level 5-min cache. Call `invalidateTaxonomyCache(type?)` after writes. Used across Home, Dashboard, Project, Materials, Deliverables.
 - **`utils/notifications.ts`**: Wrapper around Mantine notifications for toast messages.
 - **`utils/driveToken.ts`**: `getDriveAccessToken()` — calls `GET /auth/drive-token` to exchange the stored refresh token for a short-lived Drive access token.
 - **`hooks/useAuthStatus.ts`**: Checks login state on app load.
@@ -133,16 +142,17 @@ State management is local `useState`/`useEffect` per component — no global sta
 
 ### Data Models (Prisma)
 
-Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`.
+Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`.
 
 - `User` has `isAdmin Boolean @default(false)` — `bren@vil.nz` and `bev@vil.nz` are seeded as admins via migration
 - `Project` has a FK to `Contact` (Xero contact), plus optional `driveFolderId`/`driveFolderName`
-- `Project.status` valid values: `New`, `Design`, `Quote`, `With Customer`, `Production`, `Install`, `Invoice`, `Archived`, `On Hold`, `Completed`, `Abandoned` — Kanban shows all except `New`, `Completed`, and `Abandoned`. Setting `Completed` or `Abandoned` also closes the project in Xero.
+- `Project.status` is a free-text field driven by `TaxonomyItem` (type=`project_stage`). Valid values and their behaviour come from taxonomy — do not hardcode. PATCH `/api/projects/:id` validates against the live taxonomy list.
+- `TaxonomyItem` — generic extensible table (`type`, `name`, `label`, `colour`, `isArchived`, `sortOrder`, `meta` JSON). Types: `project_stage` (meta flags: `showInKanban`, `closesXero`, `sendNotification`, `canNotifyCustomer`) and `material_category`. Renaming cascades to all downstream records in a transaction.
 - `Task` can be standalone or linked to `Project` or `DesignFile`; schedule events set `eventType` (design/print/laminate/cut-apply/install/meeting/quote/invoice), `eventCalendarId`, `startTime`, `endTime`, `duration`, `googleEventId`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
 - `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent
 - `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder), `templateDriveFileId`/`templateDriveFileName` (AI template file to copy on folder creation), and `termsUrl` (T&Cs link shown in client portal approval flow)
-- `EmailTemplate` — editable email templates keyed by slug (e.g. `approval_request`); body supports shortcodes like `[clientName]`, `[version]`, `[portalLink]`
+- `EmailTemplate` — editable email templates keyed by slug (`approval_request`, `mfa_code`, `approval_confirmed`, `new_token`, `job_notification`); body supports shortcodes interpolated by `renderTemplate()`
 - `ProjectContact` — per-project contacts (name, email, isPrimary); used to send design approval emails
 - `DesignApprovalToken` — 96-char hex token (14-day expiry) sent to each contact for portal access; one per contact per design file send
 - `DesignApproval` — MFA-verified approval record per token; stores 6-digit code, expiry, verified status, and final `status` (`approved`/`changes_requested`)
