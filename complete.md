@@ -4,6 +4,28 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### Taxonomy Editor — Editable Project Stages & Material Categories (March 2026)
+**Labels:** `feature`, `settings`, `admin`, `backend`, `frontend`
+
+Admin-managed lists for project stages and material categories, replacing all hardcoded values across the app.
+
+**Backend:**
+- `TaxonomyItem` Prisma model: `type` discriminator, `name` (stored DB key), `label` (display override), `colour` (Mantine colour name), `isArchived`, `sortOrder`, `meta` JSON (stage-specific flags: `showInKanban`, `closesXero`, `isDefault`)
+- Migration seeded with all 11 project stages and 10 material categories
+- `GET /api/taxonomy/:type` — non-admin users see active items only
+- `POST /api/taxonomy/:type` — create (admin only)
+- `PATCH /api/taxonomy/:type/:id` — update with cascade rename in a DB transaction: project_stage → `UPDATE Project SET status = newName WHERE status = oldName`; material_category → `UPDATE Material SET category = newName WHERE category = oldName`
+- `VALID_STATUSES` and `XERO_CLOSE_STATUSES` in projectRoutes now query taxonomy (no longer hardcoded)
+
+**Frontend:**
+- `useTaxonomy(type)` hook with 5-minute module-level cache; `invalidateTaxonomyCache()` called after writes
+- New **Lists** admin-only tab in Settings with `TaxonomyPanel` containing reusable `TaxonomySection` components — adding a new taxonomy type requires one extra `<TaxonomySection>` call
+- Colour picker shows all 14 Mantine colour names with live badge previews
+- Project stages have "Show in Kanban" and "Closes Xero project" toggles
+- **Project detail** status dropdown, **Home page** badge colours, **Kanban board** columns, **Materials page**, **MaterialPickerModal**, and **DeliverablesTab** all derive from taxonomy — no deploys needed for label/colour/stage changes
+
+---
+
 ### Staff Management (March 2026)
 **Labels:** `feature`, `settings`, `admin`, `backend`, `frontend`
 

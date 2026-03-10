@@ -42,6 +42,7 @@ This document tracks planned and in-progress features. Completed items live in `
 - Home page: search not persisted; X clear button + ESC key to clear search field; filters persisted in localStorage
 - Frontend unit tests: 101 tests across 13 files (`yarn vitest` / `yarn vitest --reporter=verbose`); `happy-dom` environment
 - Staff management: admin-only Staff tab in Settings; StaffMember model with name, email, display colour, Xero user mapping, Google Calendar mapping, active/inactive toggle
+- Taxonomy editor: admin Lists tab in Settings; TaxonomyItem model drives project stages and material categories; cascade rename, archive/restore, Mantine colour picker; Kanban columns, status dropdowns, badge colours, and material category dropdowns all live from taxonomy
 
 ---
 
