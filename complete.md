@@ -4,13 +4,105 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### Bug Fixes — Mantine v8 API Changes (March 2026)
+**Labels:** `fix`, `frontend`
+
+- `DateTimePicker` onChange in Mantine v8 returns a formatted string (`'YYYY-MM-DD HH:mm:ss'`) not a `Date` object. Fixed in `MyTimesheet.page.tsx`, `AdminTimesheets.page.tsx`, and `ScheduleTab.tsx` by parsing with `new Date(String(val).replace(' ', 'T'))`.
+- `DatePickerInput` onChange also returns a string (`'YYYY-MM-DD'`). Fixed in both timesheet pages by parsing with `new Date(String(val))`.
+- Both bugs caused silent `TypeError: n.toISOString is not a function` when submitting forms or changing date range filters.
+- Tiptap duplicate extension: `@tiptap/starter-kit` now bundles `Link` internally — removed explicit `Link` import from `ProjectDescriptionEditor.tsx` and `Project.tsx`, configured via `StarterKit.configure({ link: {...} })`.
+
+---
+
+### Status Change Spinner + Contextual Toast (March 2026)
+**Labels:** `ux`, `frontend`
+
+- Status combobox on the project Details tab shows a loading spinner (disabled) while the PATCH is in-flight.
+- On success, a toast announces the new status. If the stage has `closesXero: true`, the toast says "project closed in Xero". If `sendNotification: true`, it says "customer notified". Both flags can appear together.
+- Same contextual toast logic applied to Kanban drag-and-drop on the Dashboard page.
+
+---
+
+### Timesheets (March 2026)
+**Labels:** `feature`, `backend`, `frontend`
+
+Time tracking for shop floor staff, with admin oversight.
+
+**Backend:**
+- `TimeEntry` Prisma model: `taskId` FK, `startedAt`, `stoppedAt` (nullable), `manuallyAdjustedMinutes`, `isManual`
+- `GET /api/timesheets` (admin) — all entries filterable by dateFrom/dateTo/staffMemberId/projectId
+- `GET /api/timesheets/mine` — current user's entries resolved via email → StaffMember lookup
+- `POST /api/timesheets` — create manual entry (taskId, startedAt, stoppedAt)
+- `PATCH /api/timesheets/:id` — edit startedAt/stoppedAt/taskId
+- `DELETE /api/timesheets/:id`
+- Shop floor `start`/`stop` actions create/close `TimeEntry` records automatically
+
+**Frontend:**
+- `MyTimesheet.page.tsx` — entries grouped by day; date range filter; manual vs timer badge; add/edit/delete entries; duration preview in edit form
+- `AdminTimesheets.page.tsx` — table of all staff entries; filters for date range + staff member; totals per staff member
+- `ITimesheetEntry` type + `entryDurationMinutes()` / `formatDuration()` helpers in `types/timesheet.ts`
+
+---
+
+### Shop Floor Workflow Viewer (March 2026)
+**Labels:** `feature`, `shop-floor`, `tablet`, `backend`, `frontend`
+
+Tablet-optimised `/shopfloor` view for production floor staff.
+
+**Backend:**
+- `GET /api/shopfloor/tasks` — returns active, future, and completed tasks for a staff member on a given local date (params: `staffMemberId`, `localDate`, `utcOffsetMinutes`)
+- `POST /api/shopfloor/tasks/:id/start` — creates a `TimeEntry` with `startedAt = now()`
+- `POST /api/shopfloor/tasks/:id/stop` — closes the open `TimeEntry` with `stoppedAt = now()`
+- `POST /api/shopfloor/tasks/:id/complete` — marks task complete and stops any running timer
+- `POST /api/shopfloor/tasks/:id/undo` — reverts task to pending
+- Task `estimatedMinutes` field drives progress bar; `timeTrackingEnabled` flag
+
+**Frontend:**
+- `ShopFloor.page.tsx` — no AppShell/nav; `StaffPickerOverlay` on first visit (selection persisted to localStorage); active, upcoming, and completed task sections; task type + project filter chips; auto-refresh every 60s; `UnavailableScreen` if backend unreachable on first load
+- `ShopFloorTaskCard` — start/stop/complete/undo buttons; time-tracking progress bar vs estimated minutes; staff member badge; design preview button (Google Drive iframe, full-screen modal)
+- `ShopFloorHeader`, `StaffPickerOverlay`, `TaskTypeFilterBar`, `CompletedTaskSection`
+- Task create/edit form (`TaskModal`) gained staff member field and estimated time field
+- Task list and card views show assigned staff member name + colour dot
+- Calendar events auto-assign the linked staff member's Google Calendar → tasks appear on their shop floor view
+- `types/shopfloor.ts`: `IShopFloorTask`, `IShopFloorResponse`, `IShopFloorStaff`, `ITimeEntry`
+
+---
+
+### Vinyl Calculator (March 2026)
+**Labels:** `feature`, `backend`, `frontend`
+
+Per-project vinyl layout calculator with best-fit skyline packing.
+
+**Backend:**
+- `GET`/`POST`/`PATCH`/`DELETE` `/api/projects/:projectId/vinyl-calculations`
+
+**Frontend:**
+- `VinylCalculatorTab.tsx` — set roll width, bleed, and gap; add pieces (name, W×H, qty, colour); live SVG layout preview; efficiency %; print sizes with bleed; placement coordinate table
+- Calculations are named, saved to the project, and support full CRUD
+- Packing algorithm auto-rotates pieces for best fit; fixed portrait/landscape orientation bug
+
+---
+
+### Projects List Improvements (March 2026)
+**Labels:** `ux`, `frontend`
+
+- Added "Date Added" and "Due Date" columns
+- Column settings button — choose which columns to show; preferences saved in localStorage
+- Sort direction toggle; Due Date added as sort option
+- Stage filter is a compact badge with chip picker; click a stage badge on a project row to change stage inline
+- Edit modal: update project name, customer, description, and due date without leaving the list
+- Due date shown in project header when set
+- Status combobox auto-saves on change — no separate Save button needed
+
+---
+
 ### Taxonomy Editor — Editable Project Stages & Material Categories (March 2026)
 **Labels:** `feature`, `settings`, `admin`, `backend`, `frontend`
 
 Admin-managed lists for project stages and material categories, replacing all hardcoded values across the app.
 
 **Backend:**
-- `TaxonomyItem` Prisma model: `type` discriminator, `name` (stored DB key), `label` (display override), `colour` (Mantine colour name), `isArchived`, `sortOrder`, `meta` JSON (stage-specific flags: `showInKanban`, `closesXero`, `isDefault`)
+- `TaxonomyItem` Prisma model: `type` discriminator, `name` (stored DB key), `label` (display override), `colour` (Mantine colour name), `isArchived`, `sortOrder`, `meta` JSON (stage-specific flags: `showInKanban`, `closesXero`, `sendNotification`, `canNotifyCustomer`); valid types: `project_stage`, `material_category`, `task_type`
 - Migration seeded with all 11 project stages and 10 material categories
 - `GET /api/taxonomy/:type` — non-admin users see active items only
 - `POST /api/taxonomy/:type` — create (admin only)
@@ -212,6 +304,7 @@ Base Job Folder (set by admin in Settings)
 - Frontend: "Take a Message" button in sidebar
 - Frontend: My Tasks shows 📞 icon, caller phone/email below subtitle, `takenAt` timestamp in place of due date
 - Frontend: `ITask` + `IProject` types updated
+- Fix (March 2026): "Assigned to" picker switched from `/users` (app login accounts) to `/staff` (active staff members); payload changed from `assignedToId` to `staffMemberId` — consistent with all other task assignment flows
 
 ---
 

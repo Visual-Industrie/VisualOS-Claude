@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CRITICAL RULES — READ FIRST
+
+- **NEVER merge a PR.** Ever. Under any circumstances. Not even if asked indirectly.
+- After opening a PR, STOP. Say "PR is open at [url] — ready to merge?" and wait.
+- Merging requires the user to explicitly say "merge" or "yes merge it" in chat.
+- `gh pr merge` is FORBIDDEN unless the user has said "merge" in this session.
+
 ## Project Overview
 
 **VisualOS** is a signage project management web application for VIL. It integrates with Xero (projects/contacts), Google Workspace (Gmail, Calendar, Drive), and Synology NAS (file storage).
@@ -83,7 +90,13 @@ yarn storybook       # Component explorer at port 6006
   - `completionPhotoRoutes` — completion photo upload to Drive
   - `calendarRoutes` — Google Calendar list + GCal events overlay (`/api/calendar/calendars`, `/api/calendar/events`); per-project schedule CRUD (`/api/projects/:id/schedule`); all-projects schedule (`/api/schedule`); syncs events to Google Calendar via `studio@vil.nz`
   - `materialRoutes` — materials/products
-  - `taxonomyRoutes` — CRUD for `TaxonomyItem` (`/api/taxonomy/:type`); PATCH cascades renames to `Project.status` or `Material.category` in a DB transaction; valid types: `project_stage`, `material_category`
+  - `taxonomyRoutes` — CRUD for `TaxonomyItem` (`/api/taxonomy/:type`); PATCH cascades renames to `Project.status` or `Material.category` in a DB transaction; valid types: `project_stage`, `material_category`, `task_type`
+  - `staffRoutes` — CRUD for `StaffMember` (`GET` any authed user, `GET /xero-users` admin only, `POST`/`PATCH`/`DELETE` admin only); 409 on duplicate email
+  - `timesheetRoutes` — `GET /` (admin all entries, filterable by dateFrom/dateTo/staffMemberId/projectId), `GET /mine` (current user's entries resolved via email → StaffMember), `POST /` (create manual entry), `PATCH /:id`, `DELETE /:id`
+  - `shopfloorRoutes` — `GET /tasks` (today's tasks for a staff member — active, future, completed; params: staffMemberId, localDate, utcOffsetMinutes); `POST /tasks/:id/start|stop|complete|undo`
+  - `verifoneRoutes` — `POST /sync` (admin only — fetches new Verifone EFTPOS reports), `GET /transactions` (admin only — paginated transaction list by date range)
+  - `vinylRoutes` — vinyl layout calculations per-project at `/api/projects/:projectId/vinyl-calculations` (CRUD)
+  - `quoteRequestRoutes` — public (no auth) `POST /api/quote-requests`; origin-locked to `visualindustrie.co.nz`; rate-limited 10/IP/hour; fuzzy contact matching; creates Project + Note + Task + `QuoteRequest` audit record; sends internal notification email; mounted before auth routes
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
 - **`utils/ensureAdmin.ts`**: Admin-only middleware — returns 403 if `req.user.isAdmin` is falsy.
@@ -110,6 +123,9 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Portal.page.tsx` — public client portal (no auth)
   - `CalendarPage.tsx` — master calendar view (all projects); GCal events overlay (public holidays, personal events) deduplicated against VisualOS `googleEventId`; all-day events parsed as local time; clicking VisualOS event shows detail modal with "Open project schedule" link; clicking GCal event opens in Google Calendar; calendar filter dropdown; colour key
   - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Templates (admin only — email + page templates, Select dropdown picker), EFTPOS (admin only), Staff (admin only), Lists (admin only — taxonomy editor), Backlog (all users), Releases (all users)
+  - `ShopFloor.page.tsx` — tablet-optimised production floor view at `/shopfloor`; no AppShell/nav; `StaffPickerOverlay` on first visit (selection persisted to localStorage); shows active, upcoming, and completed tasks for the selected staff member; start/stop/complete/undo actions with optimistic updates; task type + project filter chips; auto-refresh every 60s; `UnavailableScreen` if backend unreachable on initial load; design preview modal (Google Drive iframe, full-screen)
+  - `MyTimesheet.page.tsx` — staff time entry view at `/my-timesheet`; entries grouped by day with totals; date range filter (DatePickerInput); add/edit/delete entries; manual vs timer badge
+  - `AdminTimesheets.page.tsx` — admin time entry view at `/timesheets`; all staff entries in a table; filters for date range and staff member; totals summary per staff member at bottom
 - **`components/`**: Reusable UI:
   - `Tasks/TaskList`, `Tasks/TaskModal`, `Tasks/TaskItem`
   - `Project/Tabs/DesignTab` — design file upload + approval send
@@ -130,8 +146,12 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Settings/EmailTemplatesPanel` — admin editable email + page templates; Select dropdown to pick template; shortcode click-to-insert; HTML preview
   - `Settings/StaffPanel` — staff CRUD (name, email, colour, Xero/GCal mapping, active toggle); admin only
   - `Settings/TaxonomyPanel` — editable taxonomy sections; `TaxonomySection` is reusable per type; project stages support flags: `showInKanban`, `closesXero`, `sendNotification` (auto-email on status change), `canNotifyCustomer` (enables manual Notify button); badge colours from Mantine colour names
+- **`components/ShopFloor/`**: Shop floor tablet components — `ShopFloorTaskCard` (task card with start/stop/complete/undo buttons, time-tracking progress bar against `estimatedMinutes`, design preview button, staff badge); `ShopFloorHeader` (staff name + colour dot, last-refreshed time, change-staff button); `StaffPickerOverlay` (full-screen staff picker on first visit); `TaskTypeFilterBar` (filter chips by task type); `CompletedTaskSection` (collapsible completed tasks with undo).
+- **`components/UnavailableScreen`**: Shown on Shop Floor if backend is unreachable on initial load (network error with no response).
 - **`components/Portal/`**: Portal-specific — `PortalLayout`, `DesignViewer` (PDF iframe proxy), `ApprovalActions` (T&Cs checkbox + Approve/Request Changes), `MFAConfirmationModal` (6-digit PinInput), `FeedbackEntryList`, `FeedbackEntryForm`, `TokenExpiredScreen`.
 - **`types/`**: Shared TypeScript interfaces (`IProject`, `ITask`, `IDesignFile`, `Contact`, `SystemSettings`, `IProjectContact`, `IDesignApproval`, `IDesignApprovalToken`, `IFeedbackItem`, `ITaxonomyItem`).
+- **`types/shopfloor.ts`**: `IShopFloorTask`, `IShopFloorResponse`, `IShopFloorStaff`, `ITimeEntry`.
+- **`types/timesheet.ts`**: `ITimesheetEntry`, `entryDurationMinutes()`, `formatDuration()`.
 - **`types/taxonomy.ts`**: `ITaxonomyItem` interface + `taxonomyLabel(item)` helper (returns `label ?? name`).
 - **`hooks/useTaxonomy.ts`**: `useTaxonomy(type, includeArchived?)` — fetches taxonomy items with module-level 5-min cache. Call `invalidateTaxonomyCache(type?)` after writes. Used across Home, Dashboard, Project, Materials, Deliverables.
 - **`utils/notifications.ts`**: Wrapper around Mantine notifications for toast messages.
@@ -142,13 +162,14 @@ State management is local `useState`/`useEffect` per component — no global sta
 
 ### Data Models (Prisma)
 
-Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`.
+Key models: `User`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`.
 
 - `User` has `isAdmin Boolean @default(false)` — `bren@vil.nz` and `bev@vil.nz` are seeded as admins via migration
 - `Project` has a FK to `Contact` (Xero contact), plus optional `driveFolderId`/`driveFolderName`
 - `Project.status` is a free-text field driven by `TaxonomyItem` (type=`project_stage`). Valid values and their behaviour come from taxonomy — do not hardcode. PATCH `/api/projects/:id` validates against the live taxonomy list.
-- `TaxonomyItem` — generic extensible table (`type`, `name`, `label`, `colour`, `isArchived`, `sortOrder`, `meta` JSON). Types: `project_stage` (meta flags: `showInKanban`, `closesXero`, `sendNotification`, `canNotifyCustomer`) and `material_category`. Renaming cascades to all downstream records in a transaction.
-- `Task` can be standalone or linked to `Project` or `DesignFile`; schedule events set `eventType` (design/print/laminate/cut-apply/install/meeting/quote/invoice), `eventCalendarId`, `startTime`, `endTime`, `duration`, `googleEventId`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status
+- `TaxonomyItem` — generic extensible table (`type`, `name`, `label`, `colour`, `isArchived`, `sortOrder`, `meta` JSON). Types: `project_stage` (meta flags: `showInKanban`, `closesXero`, `sendNotification`, `canNotifyCustomer`), `material_category`, and `task_type`. Renaming cascades to all downstream records in a transaction.
+- `Task` can be standalone or linked to `Project` or `DesignFile`; schedule events set `eventType` (design/print/laminate/cut-apply/install/meeting/quote/invoice), `eventCalendarId`, `startTime`, `endTime`, `duration`, `googleEventId`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status; tasks have `staffMemberId` FK to `StaffMember` — tasks assigned to a staff member appear on their Shop Floor view; `estimatedMinutes` drives the progress bar on Shop Floor task cards; `timeTrackingEnabled` flag; has `timeEntries` relation (one-to-many `TimeEntry`)
+- `TimeEntry` — time tracking record linked to a `Task`; fields: `startedAt`, `stoppedAt` (nullable = timer still running), `manuallyAdjustedMinutes`, `isManual` (true for admin-created entries); `GET /timesheets/mine` resolves the logged-in user via email → StaffMember then filters entries by `task.staffMemberId`
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
 - `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent
 - `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder), `templateDriveFileId`/`templateDriveFileName` (AI template file to copy on folder creation), and `termsUrl` (T&Cs link shown in client portal approval flow)
@@ -161,6 +182,10 @@ Key models: `User`, `Project`, `Contact`, `Task`, `Note`, `DesignFile`, `SystemS
 - `SiteSurvey` — one per project; stores address, lat/lng, and notes; has `SurveyPhoto` children (stored in Google Drive)
 - `Deliverable` — physical sign component linked to a project; tracks type, dimensions, material, laminate, and optional cutting diagram Drive file
 - `Material` — substrate/vinyl/laminate catalogue; optionally linked to Xero items
+- `StaffMember` — UUID id, unique email, name, displayColour, optional `xeroUserId` and `googleCalendarId` mappings, `isActive` flag; email is used to look up the current user's staff record for `/timesheets/mine` and Shop Floor
+- `Note.userId` is nullable — system-generated notes (e.g. from quote request intake) omit the userId
+- `Contact.source` and `Project.source` — optional string field (`'xero'` | `'quote_request'` | null); set on new web-form leads
+- `QuoteRequest` — audit log for every inbound quote form submission; stores all fields plus `matchStrategy` (`'email'` | `'fuzzy_name'` | `'none'`), `contactId`, `projectId`; `src/utils/fuzzyMatch.ts` exports `normalise()` and `tokenOverlapScore()` (70% token overlap threshold)
 - Xero sync only fetches `INPROGRESS` and `CLOSED` — Xero Projects API does not accept `DRAFT` as a states filter
 
 ### External Integrations
@@ -209,6 +234,8 @@ VITE_GOOGLE_API_KEY=        # set via GH Actions secret
 
 ## Development Standards
 
+- **Run commands individually — never chain with `&&`.** Each command must be a separate `Bash` call so output and errors are visible independently.
+- **Please execute tasks one at a time**. Run one command, wait for the output, and then run the next command.
 - **Always work on a feature branch.** Never commit directly to `main` (backend) or `master` (frontend). Branch from `main`/`master` using Gitflow naming: `feature/FeatureName`, `fix/BugDescription`, `chore/TaskName`. Example: `feature/CalendarIntegration`.
 - **Never merge to the base branch without explicit permission.** Open a PR and wait. Do not merge until the user has tested locally and either says "merge" or explicitly authorises it. When a PR is ready, ask: "Ready to merge?" and wait for confirmation.
 - **Restart express_api after every backend PR.** After opening a backend PR (and before merging), always restart the local dev container so the user can test the latest code: `docker restart express_api`. If the PR is frontend-only, no restart is needed.

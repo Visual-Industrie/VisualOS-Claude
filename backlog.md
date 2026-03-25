@@ -42,7 +42,11 @@ This document tracks planned and in-progress features. Completed items live in `
 - Home page: search not persisted; X clear button + ESC key to clear search field; filters persisted in localStorage
 - Frontend unit tests: 101 tests across 13 files (`yarn vitest` / `yarn vitest --reporter=verbose`); `happy-dom` environment
 - Staff management: admin-only Staff tab in Settings; StaffMember model with name, email, display colour, Xero user mapping, Google Calendar mapping, active/inactive toggle
-- Taxonomy editor: admin Lists tab in Settings; TaxonomyItem model drives project stages and material categories; cascade rename, archive/restore, Mantine colour picker; Kanban columns, status dropdowns, badge colours, and material category dropdowns all live from taxonomy
+- Taxonomy editor: admin Lists tab in Settings; TaxonomyItem model drives project stages, material categories, and task types; cascade rename, archive/restore, Mantine colour picker; Kanban columns, status dropdowns, badge colours, and material category dropdowns all live from taxonomy
+- Shop Floor tablet view (`/shopfloor`): staff picker (persisted), today's task cards with start/stop/complete/undo, optimistic updates, time-tracking progress bar, design preview overlay, task type + project filters, auto-refresh every 60s
+- Timesheets: `TimeEntry` model tracks start/stop per task; My Timesheet page (`/my-timesheet`) shows staff's own time grouped by day; Admin Timesheets page shows all staff entries with filters and totals; manual entry creation supported
+- Vinyl Calculator: per-project tab for laying out vinyl pieces on a roll; skyline packing with auto-rotation; live layout preview, efficiency %, print sizes with bleed; calculations saved per project
+- EFTPOS: admin Settings tab shows Verifone transaction history by date range; manual sync button
 
 ---
 
@@ -97,16 +101,11 @@ During the contacts migration, `xeroContactName` and the old `xeroContactId` wer
 ---
 
 ### 22. Shop Floor Workflow Viewer
-**Status:** 📋 Planned
+**Status:** ✅ Shipped — March 2026
 **Priority:** High
 **Labels:** `feature`, `shop-floor`, `tablet`, `ux`
 
-A dedicated tablet-optimised view permanently displayed in the production area. No sidebar, no nav — just what floor staff need. Shows today's production jobs pulled from calendar events, with big tappable status toggles (Pending → In Progress → Done) suited to gloved hands. Auto-refreshes every 60 seconds. Pinned to a shop floor user session (no repeated logins). Landscape-optimised layout with a clear "What's Next" queue — overdue jobs highlighted in red, today's amber, upcoming green. Optionally shows a thumbnail of the linked Drive design file.
-
-**Notes:**
-- Route: `/shopfloor` — fully separate layout, no AppShell
-- Session pinned to a dedicated shop floor user account
-- Consider large touch targets throughout — this is a gloved-hand environment
+Tablet-optimised `/shopfloor` view. Staff picker persisted to localStorage. Shows active, upcoming, and completed tasks for the selected staff member. Start/stop/complete/undo with optimistic updates. Time-tracking progress bar. Design preview modal. Auto-refresh every 60s.
 
 ---
 
@@ -232,7 +231,7 @@ Status change triggers an email to the primary project contact via the existing 
 ---
 
 ### 30. WordPress Quote Request Form → VisualOS API
-**Status:** 📋 Planned
+**Status:** ✅ Shipped — March 2026
 **Priority:** High
 **Labels:** `feature`, `api`, `intake`, `contacts`
 
@@ -317,9 +316,7 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 ## Priority Summary
 
 ### High Priority (Ready to Build)
-1. **Shop Floor Workflow Viewer** (#22)
-2. **WordPress Quote Request Form → VisualOS API** (#30)
-3. **Client Communication Preferences** (#29)
+1. **Client Communication Preferences** (#29)
 
 ### Medium Priority
 1. Global App State with React Context (#11)
@@ -355,4 +352,4 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 
 ---
 
-**Last Updated:** March 11, 2026 — Shipped Notify Customer button; contact fallback for notification emails; fixed status-change side effects from project details page; Xero close logging
+**Last Updated:** March 25, 2026 — Shipped quote request intake API (#30); fixed phone message staff picker
