@@ -52,7 +52,7 @@ yarn build           # TypeScript check + Vite build
 yarn preview         # Preview production build
 
 yarn test            # Full suite: typecheck + prettier + lint + vitest + build
-yarn vitest          # Unit tests only (85 tests across 11 files)
+yarn vitest          # Unit tests only (101 tests across 13 files)
 yarn vitest:watch    # Watch mode
 yarn vitest --reporter=verbose   # Verbose output — shows each test name
 yarn typecheck       # tsc --noEmit
@@ -74,7 +74,7 @@ yarn storybook       # Component explorer at port 6006
 - **`routes/`**: One file per domain:
   - `projectRoutes` — CRUD + Drive folder creation + DELETE (cascading)
   - `contactRoutes` — Xero contact sync + webhook
-  - `taskRoutes` — task CRUD
+  - `taskRoutes` — task CRUD; `PATCH /tasks/:id` accepts `projectId` to reassign or unlink a task from a project
   - `noteRoutes` — project notes
   - `designFileRoutes` — Drive-linked design files + approval send
   - `gmailRoutes` — Gmail thread list/view + search + label-thread
@@ -92,7 +92,7 @@ yarn storybook       # Component explorer at port 6006
   - `materialRoutes` — materials/products
   - `taxonomyRoutes` — CRUD for `TaxonomyItem` (`/api/taxonomy/:type`); PATCH cascades renames to `Project.status` or `Material.category` in a DB transaction; valid types: `project_stage`, `material_category`, `task_type`
   - `staffRoutes` — CRUD for `StaffMember` (`GET` any authed user, `GET /xero-users` admin only, `POST`/`PATCH`/`DELETE` admin only); 409 on duplicate email
-  - `timesheetRoutes` — `GET /` (admin all entries, filterable by dateFrom/dateTo/staffMemberId/projectId), `GET /mine` (current user's entries resolved via email → StaffMember), `POST /` (create manual entry), `PATCH /:id`, `DELETE /:id`
+  - `timesheetRoutes` — `GET /` (admin all entries, filterable by dateFrom/dateTo/staffMemberId/projectId), `GET /mine` (current user's entries resolved via email → StaffMember), `POST /` (create manual entry), `PATCH /:id` (supports notes field), `DELETE /:id`
   - `shopfloorRoutes` — `GET /tasks` (today's tasks for a staff member — active, future, completed; params: staffMemberId, localDate, utcOffsetMinutes); `POST /tasks/:id/start|stop|complete|undo`
   - `verifoneRoutes` — `POST /sync` (admin only — fetches new Verifone EFTPOS reports), `GET /transactions` (admin only — paginated transaction list by date range)
   - `vinylRoutes` — vinyl layout calculations per-project at `/api/projects/:projectId/vinyl-calculations` (CRUD)
@@ -119,7 +119,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
 - **`pages/`**: Full-page route components:
   - `Home.page.tsx` — searchable/filterable/sortable project list table; rows stack on mobile; X button on each row to permanently delete a project; search is NOT persisted (other filters are); search field has X clear button + ESC-to-clear
   - `Dashboard.page.tsx` — Kanban board (drag-and-drop status columns)
-  - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned
+  - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned; Notes tab is hidden (backlog #37 to move inline to Details)
   - `Portal.page.tsx` — public client portal (no auth)
   - `CalendarPage.tsx` — master calendar view (all projects); GCal events overlay (public holidays, personal events) deduplicated against VisualOS `googleEventId`; all-day events parsed as local time; clicking VisualOS event shows detail modal with "Open project schedule" link; clicking GCal event opens in Google Calendar; calendar filter dropdown; colour key
   - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Templates (admin only — email + page templates, Select dropdown picker), EFTPOS (admin only), Staff (admin only), Lists (admin only — taxonomy editor), Backlog (all users), Releases (all users)
@@ -127,12 +127,13 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `MyTimesheet.page.tsx` — staff time entry view at `/my-timesheet`; entries grouped by day with totals; date range filter (DatePickerInput); add/edit/delete entries; manual vs timer badge
   - `AdminTimesheets.page.tsx` — admin time entry view at `/timesheets`; all staff entries in a table; filters for date range and staff member; totals summary per staff member at bottom
 - **`components/`**: Reusable UI:
-  - `Tasks/TaskList`, `Tasks/TaskModal`, `Tasks/TaskItem`
+  - `Tasks/TaskList`, `Tasks/TaskModal` (`showProjectPicker` prop shows project dropdown — used for both add and edit on My Tasks page; edit pre-fills current project), `Tasks/TaskItem` (shows task type badge)
   - `Project/Tabs/DesignTab` — design file upload + approval send
   - `Project/Tabs/EmailTab` — Gmail thread viewer + find & link emails panel
-  - `Project/Tabs/SurveyTab` — site survey with address autocomplete, notes, and photo capture (camera via `getUserMedia` or file upload); 3-phase modal: source picker → live camera → preview + notes
+  - `Project/Tabs/SurveyTab` — site survey with address autocomplete, notes, and photo capture (camera via `getUserMedia` or multi-file upload); 3-phase modal: source picker → live camera → preview + notes/dimensions; multi-file: thumbnail grid + sequential upload with progress
   - `Project/Tabs/ScheduleTab` — per-project schedule using React Big Calendar; create/edit/delete events; syncs to Google Calendar; GCal overlay (deduped by `googleEventId`); colour key; upcoming + unscheduled lists
-  - `Project/Tabs/CompletionPhotosTab` — completion photo grid + lightbox; same 3-phase camera/upload modal as SurveyTab
+  - `Project/Tabs/CompletionPhotosTab` — completion photo grid + lightbox; same 3-phase camera/upload modal as SurveyTab; multi-file upload supported
+  - `Project/Tabs/TimesheetTab` — all time entries for the project across all staff; add/edit/delete manual entries; task picker pre-filtered to project tasks; total duration in header
   - `Project/Tabs/CalendarTab`, `DeliverablesTab`
   - `Project/Tabs/DetailsTab` — description editor, status combobox (taxonomy-driven), Save button, Notify Customer button (enabled/disabled by `canNotifyCustomer` flag on current stage), Drive folder picker, project contacts
   - `Project/DriveFolderPicker` — Drive folder picker + auto-create folder hierarchy
@@ -146,9 +147,9 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Settings/EmailTemplatesPanel` — admin editable email + page templates; Select dropdown to pick template; shortcode click-to-insert; HTML preview
   - `Settings/StaffPanel` — staff CRUD (name, email, colour, Xero/GCal mapping, active toggle); admin only
   - `Settings/TaxonomyPanel` — editable taxonomy sections; `TaxonomySection` is reusable per type; project stages support flags: `showInKanban`, `closesXero`, `sendNotification` (auto-email on status change), `canNotifyCustomer` (enables manual Notify button); badge colours from Mantine colour names
-- **`components/ShopFloor/`**: Shop floor tablet components — `ShopFloorTaskCard` (task card with start/stop/complete/undo buttons, time-tracking progress bar against `estimatedMinutes`, design preview button, staff badge); `ShopFloorHeader` (staff name + colour dot, last-refreshed time, change-staff button); `StaffPickerOverlay` (full-screen staff picker on first visit); `TaskTypeFilterBar` (filter chips by task type); `CompletedTaskSection` (collapsible completed tasks with undo).
+- **`components/ShopFloor/`**: Shop floor tablet components — `ShopFloorTaskCard` (task card with start/stop/complete/undo buttons, time-tracking progress bar against `estimatedMinutes`, design preview button, staff badge, task type badge); `ShopFloorHeader` (staff name + colour dot, last-refreshed time, "Switch user" button); `StaffPickerOverlay` (full-screen staff picker on first visit); `TaskTypeFilterBar` (filter chips by task type); `CompletedTaskSection` (collapsible completed tasks with undo).
 - **`components/UnavailableScreen`**: Shown on Shop Floor if backend is unreachable on initial load (network error with no response).
-- **`components/Portal/`**: Portal-specific — `PortalLayout`, `DesignViewer` (PDF iframe proxy), `ApprovalActions` (T&Cs checkbox + Approve/Request Changes), `MFAConfirmationModal` (6-digit PinInput), `FeedbackEntryList`, `FeedbackEntryForm`, `TokenExpiredScreen`.
+- **`components/Portal/`**: Portal-specific — `PortalLayout`, `DesignViewer` (PDF iframe proxy), `ApprovalActions` (shows Approve/Request Changes; Approve expands inline with option picker + T&Cs + confirm button; POSTs directly to `/approve`, no MFA modal), `FeedbackEntryList`, `FeedbackEntryForm` (Textarea — one change per line, each submitted separately), `TokenExpiredScreen`.
 - **`types/`**: Shared TypeScript interfaces (`IProject`, `ITask`, `IDesignFile`, `Contact`, `SystemSettings`, `IProjectContact`, `IDesignApproval`, `IDesignApprovalToken`, `IFeedbackItem`, `ITaxonomyItem`).
 - **`types/shopfloor.ts`**: `IShopFloorTask`, `IShopFloorResponse`, `IShopFloorStaff`, `ITimeEntry`.
 - **`types/timesheet.ts`**: `ITimesheetEntry`, `entryDurationMinutes()`, `formatDuration()`.
@@ -171,12 +172,12 @@ Key models: `User`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `DesignFi
 - `Task` can be standalone or linked to `Project` or `DesignFile`; schedule events set `eventType` (design/print/laminate/cut-apply/install/meeting/quote/invoice), `eventCalendarId`, `startTime`, `endTime`, `duration`, `googleEventId`; phone message tasks set `isPhoneMessage=true` and carry `callerName`, `callerPhone`, `callerEmail`, `takenAt`; client feedback tasks have `source='client_feedback'`, `portalTokenId`, and start as `status='draft'` until the client submits (then promoted to `pending`); all task list queries exclude `draft` status; tasks have `staffMemberId` FK to `StaffMember` — tasks assigned to a staff member appear on their Shop Floor view; `estimatedMinutes` drives the progress bar on Shop Floor task cards; `timeTrackingEnabled` flag; has `timeEntries` relation (one-to-many `TimeEntry`)
 - `TimeEntry` — time tracking record linked to a `Task`; fields: `startedAt`, `stoppedAt` (nullable = timer still running), `manuallyAdjustedMinutes`, `isManual` (true for admin-created entries); `GET /timesheets/mine` resolves the logged-in user via email → StaffMember then filters entries by `task.staffMemberId`
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
-- `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent
+- `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent; `optionsCount Int @default(1)` — staff sets how many layout options exist (1–10); shown as a `NumberInput` on the design file card
 - `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder), `templateDriveFileId`/`templateDriveFileName` (AI template file to copy on folder creation), and `termsUrl` (T&Cs link shown in client portal approval flow)
-- `EmailTemplate` — editable email templates keyed by slug (`approval_request`, `mfa_code`, `approval_confirmed`, `new_token`, `job_notification`); body supports shortcodes interpolated by `renderTemplate()`
+- `EmailTemplate` — editable email templates keyed by slug (`approval_request`, `mfa_code`, `approval_confirmed`, `new_token`, `job_notification`, `design_approval_confirmation`); body supports shortcodes interpolated by `renderTemplate()`
 - `ProjectContact` — per-project contacts (name, email, isPrimary); used to send design approval emails
 - `DesignApprovalToken` — 96-char hex token (14-day expiry) sent to each contact for portal access; one per contact per design file send
-- `DesignApproval` — MFA-verified approval record per token; stores 6-digit code, expiry, verified status, and final `status` (`approved`/`changes_requested`)
+- `DesignApproval` — approval record per token; `POST /portal/:token/approve` now generates a `confirmationToken` (32-byte hex, 24h expiry) and sends `design_approval_confirmation` email instead of MFA; `GET /portal/confirm/:confirmToken` finalises the approval (sets `submittedAt`, updates `DesignFile.status`, promotes draft feedback tasks); fields: `approvedOption Int?` (which option they chose), `confirmationToken String? @unique`, `confirmTokenExpiry DateTime?`
 - `PortalAuditLog` — structured event log for all portal activity (token_accessed, mfa_sent, mfa_verified, approval_submitted, etc) with IP and user agent
 - `FeatureRequest` — staff-submitted feature requests; fields: `description`, `pageUrl`, `userId`, `userName` (denormalised), `status` (`open`/`archived`)
 - `SiteSurvey` — one per project; stores address, lat/lng, and notes; has `SurveyPhoto` children (stored in Google Drive)

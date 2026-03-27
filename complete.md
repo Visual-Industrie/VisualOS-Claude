@@ -4,6 +4,30 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### March 27, 2026 — Task UX + Timesheets improvements
+**Labels:** `feature`, `ux`, `frontend`, `backend`
+
+- **Task type badge** — `taskType` field added to `ITask`; badge now appears in `TaskItem` (My Tasks page, all project task lists). Shop Floor already showed it.
+- **Project picker in task edit modal** — `TaskModal` with `showProjectPicker` now used for both add and edit on My Tasks; edit pre-fills the current project; `PATCH /tasks/:id` backend updated to accept `projectId`
+- **Shop Floor "Switch user"** — header button renamed from "Change" to "Switch user"
+- **Project Timesheets tab** — new `TimesheetTab` on every project showing all time entries across all staff; add/edit/delete manual entries; task picker pre-filtered to project; total duration in header
+- **Notes tab hidden** — project Notes tab removed from tab bar; tracked in backlog #37 to move inline to Details
+
+---
+
+### March 26, 2026 — Design approval confirmation flow + multi-photo upload + timezone fix
+**Labels:** `feature`, `fix`, `frontend`, `backend`
+
+- **Design approval confirmation token** — replaced 6-digit MFA code with one-click email confirmation link. `POST /portal/:token/approve` now generates a `confirmationToken` (32-byte hex, 24h expiry) and sends a `design_approval_confirmation` email. `GET /portal/confirm/:confirmToken` finalises the approval. New `PortalConfirm.page.tsx` at `/portal/confirm/:confirmToken`
+- **Design options count** — `optionsCount Int @default(1)` on `DesignFile`; staff set it via `NumberInput` (1–10) on the design card; customers see an option picker badge (Option 1, 2, 3…) before approving; confirmation email shows the chosen option; `PATCH /design-files/:id` endpoint added
+- **Portal UX** — Approve/Request Changes shown as two buttons; Approve expands inline with option picker + T&Cs + confirm; `FeedbackEntryForm` changed to `Textarea` (one change per line, submitted as separate feedback items)
+- **Multi-photo upload** — Survey and Completion Photos "Upload files" button now accepts multiple files at once; thumbnail grid shown; sequential upload with progress counter; notes/dimensions only apply for single-file upload
+- **Timesheet date timezone fix** — `DatePickerInput` returns `'YYYY-MM-DD'` string parsed as UTC midnight, excluding NZ morning entries. Fixed in `MyTimesheet.page.tsx` and `AdminTimesheets.page.tsx` with `localStartOfDay`/`localEndOfDay` helpers using the multi-arg `Date` constructor
+- **Timesheet notes field** — time entries have an optional notes field; shown in the timesheet table and edit modal
+- **Timesheet customer name** — Job column in all timesheet views now shows `Customer — Project` format
+
+---
+
 ### Bug Fixes — Mantine v8 API Changes (March 2026)
 **Labels:** `fix`, `frontend`
 

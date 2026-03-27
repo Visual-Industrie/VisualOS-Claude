@@ -43,8 +43,10 @@ This document tracks planned and in-progress features. Completed items live in `
 - Frontend unit tests: 101 tests across 13 files (`yarn vitest` / `yarn vitest --reporter=verbose`); `happy-dom` environment
 - Staff management: admin-only Staff tab in Settings; StaffMember model with name, email, display colour, Xero user mapping, Google Calendar mapping, active/inactive toggle
 - Taxonomy editor: admin Lists tab in Settings; TaxonomyItem model drives project stages, material categories, and task types; cascade rename, archive/restore, Mantine colour picker; Kanban columns, status dropdowns, badge colours, and material category dropdowns all live from taxonomy
-- Shop Floor tablet view (`/shopfloor`): staff picker (persisted), today's task cards with start/stop/complete/undo, optimistic updates, time-tracking progress bar, design preview overlay, task type + project filters, auto-refresh every 60s
-- Timesheets: `TimeEntry` model tracks start/stop per task; My Timesheet page (`/my-timesheet`) shows staff's own time grouped by day; Admin Timesheets page shows all staff entries with filters and totals; manual entry creation supported
+- Shop Floor tablet view (`/shopfloor`): staff picker (persisted), today's task cards with start/stop/complete/undo, optimistic updates, time-tracking progress bar, design preview overlay, task type + project filters, auto-refresh every 60s; "Switch user" button in header
+- Timesheets: `TimeEntry` model tracks start/stop per task; My Timesheet page shows staff's own time; Admin Timesheets page shows all staff with filters and totals; project Timesheets tab shows all entries per job; manual entry add/edit/delete; notes field on entries; Job column shows customer + project name
+- Survey & Completion Photos: multi-file upload supported — thumbnail grid + sequential upload with progress; single-file retains notes/dimensions flow
+- Tasks: task type badge shown in all task list views (My Tasks, project lists, Shop Floor); project picker shown when editing tasks on My Tasks page
 - Vinyl Calculator: per-project tab for laying out vinyl pieces on a roll; skyline packing with auto-rotation; live layout preview, efficiency %, print sizes with bleed; calculations saved per project
 - EFTPOS: admin Settings tab shows Verifone transaction history by date range; manual sync button
 
@@ -313,6 +315,15 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 
 ---
 
+### 37. Move Notes onto Project Details Tab
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `ui`, `cleanup`
+
+The Notes tab has been hidden. Notes should be surfaced inline on the Details tab — likely as a simple list below the description with an inline "Add note" input, so staff don't have to switch tabs to jot something down.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -329,13 +340,14 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 8. Admin Integration Settings Page (#33)
 
 ### Low Priority / Cleanup
-1. Vitest Setup (Backend) (#12)
-2. Remove `xeroContactName` from Project (#14) — cleanup migration
-3. Business Intelligence Dashboard (#23)
-4. Materials Catalog (#6) — PARKED
-5. Transactional Email Provider (#34) — future
-6. Email / Calendar Provider Abstraction (#35) — future
-7. File Storage Provider Abstraction (#36) — future
+1. Move Notes onto Project Details Tab (#37)
+2. Vitest Setup (Backend) (#12)
+3. Remove `xeroContactName` from Project (#14) — cleanup migration
+4. Business Intelligence Dashboard (#23)
+5. Materials Catalog (#6) — PARKED
+6. Transactional Email Provider (#34) — future
+7. Email / Calendar Provider Abstraction (#35) — future
+8. File Storage Provider Abstraction (#36) — future
 
 ---
 
@@ -352,4 +364,4 @@ Provider-agnostic storage layer beyond Google Drive. Required before multi-tenan
 
 ---
 
-**Last Updated:** March 25, 2026 — Shipped quote request intake API (#30); fixed phone message staff picker
+**Last Updated:** March 27, 2026 — Shipped project Timesheets tab, multi-photo upload, task type badges, design approval confirmation token flow, task edit project picker
