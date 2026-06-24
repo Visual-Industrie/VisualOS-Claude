@@ -4,6 +4,72 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### June 2026 — Live Timesheet Timer, Multi-Staff Financials, Stage-Gated Tasks, PO/Ref
+**Labels:** `feature`, `fix`, `timesheets`, `financial`, `tasks`, `xero`
+
+- **Live timesheet timer** — Start timer button (green play) in the project Time Entries header; pick or create a task and track time live. Turns into an orange Pause while running; the running entry shows a green "Running" badge with live duration. Yellow warning if another timer is already running.
+- **Multi-staff Financial rows** — when more than one staff member logs time on the same task, each gets their own row on the Financial tab. The assigned staff row carries the estimate; other rows show only actual hours. Charge / Use / Chargeable toggles work independently per row.
+- **Stage-gated task visibility** — task types can carry a "Show tasks from stage" gate; tasks stay hidden from task lists and Shop Floor until the project reaches (or passes) that stage. A clock icon flags a waiting task. Configured in Settings → Lists → Task types.
+- **Project PO / Ref field** — set on the Details tab (below description) or the Financial tab; stored on the project and passed to Xero as the Reference field on quote/invoice creation.
+- **Timesheet entry modal** — staff member picker (defaults to task assignee, else logged-in user, stored on the entry); Task dropdown can create a new task on the fly via "+ Create …".
+- **Manual invoice override drives Xero totals** — override amount used as the total when creating a Xero quote or invoice; in itemised mode a "Project management" fee line bridges the difference. Field now also saves on Enter.
+- **Fix: Materials → Sync from Xero** — Xero's items endpoint doesn't paginate; the old page/pageSize args were ignored, re-processing the full list up to 51× (false "7000+ items" + production timeout). Now a single request, each item processed once.
+- **Task cards** no longer show the "assigned to" organisation name — only the staff member badge.
+
+---
+
+### May 2026 — Xero Quote & Invoice Creation, Expenses, Overview, Enquiry Form
+**Labels:** `feature`, `xero-api`, `financial`, `frontend`, `backend`
+
+- **Xero invoice creation from Financial tab** — `POST /api/projects/:id/invoice` builds a Xero draft invoice with chosen line structure (combine all, or itemise per Labour/Materials/Expenses); missing-pricing and missing-contact warnings shown before creation; "View Invoice in Xero" deep-link after. Default sales account code configurable in Settings → General/Admin → Invoicing (default `200`).
+- **Xero quote creation from Financial tab** — `POST /api/projects/:id/quote` creates a draft quote from estimated hours/quantities/costs using the same structure options; quotes appear in a Quotes section with a link to open in Xero. (`ProjectQuote` model.)
+- **Link existing Xero quote/invoice** — "Link existing" buttons accept any Xero quote/invoice URL and attach it to the project, for documents created directly in Xero.
+- **Pre-tax totals + refresh** — quotes and invoices show the pre-tax total; a ↻ button re-fetches the latest figure from Xero; pulled automatically on link/create. Fixed a crash opening the tab on projects with a linked quote/invoice.
+- **Other expenses section** — name, description, estimated/actual cost, markup (% or fixed $) for charge-out revenue; paste a Xero AP URL to link an invoice. Rolls into totals and profit.
+- **Chargeable checkbox + Est/Act toggles** — per task/material/expense row; unchecked rows still count toward cost but not revenue; editable cost price per material line (catalogue price shown as placeholder).
+- **Invoice due date from payment terms** — auto-fills from the contact's Xero payment terms; falls back to a configurable "Standard invoice days" (Settings → Admin → Invoicing, default 7). Payment terms shown on the contact overview.
+- **Home overview stats + Overview page** — per-stage stat blocks above the project list for stages flagged "Show on Overview" (this-month / this-year counts, counted on most recent move only); new sidebar Overview page with open / completed-this-month / completed-this-year / abandoned tiles.
+- **Project status history log** — on the Details tab, showing each stage transition with timestamp and who changed it. Deleting a project now closes the corresponding Xero project (Xero has no delete).
+- **Design approval** — optional approval notes field (included in the internal email + shown on the Design tab); requesting changes no longer requires a confirmation link; Home shows an orange "N changes" badge on customer-facing stages.
+- **Timesheet hours-entry mode** — choose "Time range" or "Hours" (decimal hours + date) on My Timesheet and the project Timesheet tab.
+- **Public enquiry form at `/enquire`** — name, email, phone, work type, description; creates a contact, project, and follow-up task; work types managed in Settings → Lists; honeypot spam protection.
+- **Calendars** now start the week on Monday across all pickers and views.
+
+---
+
+### April–May 2026 — Mileage Tracking, Staff–User Linking, Approval Attachments
+**Labels:** `feature`, `fix`, `mileage`, `staff`, `frontend`, `backend`
+
+- **Mileage tracking** — log vehicle mileage per trip (standalone, project-linked, or task-linked); odometer start+end or direct km entry; start-only trips show an orange "In progress" badge until the end reading is filled. Vehicles managed in Settings → Vehicles. Access via sidebar "Log Mileage", the My VisualOS page, or a project Mileage tab.
+- **My VisualOS page** — combines My Timesheet + My Mileage under one sidebar entry with tabs; admin timesheet/mileage views moved into Settings tabs.
+- **Staff–user account linking** — staff records linked to user accounts via a DB relationship (fixes My Tasks not matching when staff/user emails differed); manual link/unlink in the Staff edit modal, with the linked account shown in the Staff panel.
+- **Design approval attachments** — attach up to 5 files (10 MB each) in the Send approval email modal; included directly in the email (not for scheduled sends).
+- **UI** — narrower sidebar with a collapse button; Drive pickers default to list view; Contacts type filter (incl. "Customer, no folder"); "No client folder" badges on project list/detail; option to create a Drive folder hierarchy without the VI template.
+
+---
+
+### May 2026 — Financial Tab, Materials Pricing, Staff Cost Rates, Charge Out Rates
+**Labels:** `feature`, `admin`, `backend`, `frontend`
+
+- **Financial tab** — new admin-only tab on every project. Staff section shows completed hours per team member, their cost rate, and revenue at the selected charge-out rate. Materials section shows cost price (from Xero catalogue) and sale price (overridable per project line, saved on blur). Discount (percent or dollar) applied to the subtotal. Totals block shows staff cost, materials cost, total cost, revenue subtotal, discount, total to invoice, and profit (teal/red).
+- **Manual invoice override** — optional field below "Total to invoice" on the Financial tab. When filled, Profit is calculated from the override rather than the calculated total. Saved on blur, persists across reload.
+- **Profit line** — displayed at the bottom of the Financial tab totals, coloured teal (positive) or red (negative). Calculated as effective invoice minus total cost.
+- **Materials pricing** — cost price and sale price columns added to the Materials catalogue table. Create/edit modal includes editable price fields for both. Xero sync now pulls `purchaseDetails.unitPrice` and `salesDetails.unitPrice` from each item.
+- **Staff cost price** — each staff member now has an optional hourly cost rate (admin only). Shown in the Staff table and used for staff cost calculations on the Financial tab.
+- **Charge out rates** — new admin section in Settings with configurable billing rates. Standard ($108/hr) and Web ($128/hr) pre-loaded. Star icon marks the default rate, which is pre-selected on the Financial tab for new projects. Admins can add, edit, delete, and change the default rate.
+- **ProjectFinancials model** — one-to-one with Project; stores selected charge-out rate, discount type/value, and invoice override. Auto-saved on the Financial tab.
+
+---
+
+### April 2026 — Survey photo annotations + portal feedback task fix
+**Labels:** `feature`, `fix`, `frontend`, `backend`, `mobile`
+
+- **Survey photo dimension annotations** — full-screen canvas annotator modal on survey photos. Staff tap two points to draw a labelled dimension line. Annotations stored as relative JSONB coordinates (0–1) on `SurveyPhoto.annotations`. DPR-aware canvas rendering; letterbox aspect ratio; pinch-to-zoom + single-finger pan; annotation list overlaid (no layout shift). `PATCH /surveys/photos/:photoId/annotations` backend route with Zod validation (max 20, coords 0–1, hex colour). Green dot indicator on annotated thumbnails in SurveyTab.
+- **Fix: MyTasks duplicate Mantine Select options** — two projects with the same name caused a "Duplicate options" crash. Fixed by using project `id` (not name) as the Select `value`.
+- **Fix: portal feedback tasks not visible on design tab** — since the confirmation-email flow (PR #72), `draft` feedback tasks were only promoted to `pending` when the customer clicked the confirmation link. Customers often miss the email, leaving tasks permanently hidden. Fixed: tasks are now promoted immediately on `POST /portal/:token/approve`.
+
+---
+
 ### March 27, 2026 — Task UX + Timesheets improvements
 **Labels:** `feature`, `ux`, `frontend`, `backend`
 

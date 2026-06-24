@@ -46,9 +46,20 @@ This document tracks planned and in-progress features. Completed items live in `
 - Shop Floor tablet view (`/shopfloor`): staff picker (persisted), today's task cards with start/stop/complete/undo, optimistic updates, time-tracking progress bar, design preview overlay, task type + project filters, auto-refresh every 60s; "Switch user" button in header
 - Timesheets: `TimeEntry` model tracks start/stop per task; My Timesheet page shows staff's own time; Admin Timesheets page shows all staff with filters and totals; project Timesheets tab shows all entries per job; manual entry add/edit/delete; notes field on entries; Job column shows customer + project name
 - Survey & Completion Photos: multi-file upload supported — thumbnail grid + sequential upload with progress; single-file retains notes/dimensions flow
+- Survey photo annotations: tap-to-draw dimension lines on survey photos; stored as relative JSONB; DPR canvas; pinch-to-zoom; overlay controls (no layout shift)
 - Tasks: task type badge shown in all task list views (My Tasks, project lists, Shop Floor); project picker shown when editing tasks on My Tasks page
 - Vinyl Calculator: per-project tab for laying out vinyl pieces on a roll; skyline packing with auto-rotation; live layout preview, efficiency %, print sizes with bleed; calculations saved per project
 - EFTPOS: admin Settings tab shows Verifone transaction history by date range; manual sync button
+- Materials pricing: cost price and sale price on each material (synced from Xero or set manually); both columns shown in the Materials catalogue table and editable in the create/edit modal
+- Staff cost price: optional hourly cost rate per staff member (admin only); used in Financial tab cost calculations
+- Charge out rates: admin-managed billing rates (Standard $108/hr, Web $128/hr); star marks default; used to calculate staff revenue on Financial tab
+- Financial tab (admin only): per-project admin tab showing staff time cost/revenue, materials cost/revenue, other expenses, discount, total to invoice, manual invoice override, and profit (teal/red); per-row Est/Act and Chargeable toggles; multi-staff rows per task
+- Xero quote & invoice creation from the Financial tab: draft quote/invoice with configurable line structure (combine all or itemise per labour/materials/expenses); link an existing Xero quote/invoice by URL; pre-tax totals with refresh; due date from contact payment terms; PO/Ref passed to Xero
+- Live timesheet timer on the project Timesheet tab (start/stop, running badge, live duration); hours-or-range entry mode; on-the-fly task creation in the entry modal
+- Stage-gated task visibility: task types can be hidden until a project reaches a configured stage
+- Mileage tracking: per-trip logging (standalone/project/task-linked), odometer or direct km, vehicles managed in Settings, project Mileage tab, combined My VisualOS page
+- Public enquiry form at `/enquire` (creates contact + project + follow-up task; work types in Lists; honeypot spam protection)
+- Overview page + Home per-stage stat blocks; project status history log on Details; deleting a project closes it in Xero
 
 ---
 
@@ -324,6 +335,29 @@ The Notes tab has been hidden. Notes should be surfaced inline on the Details ta
 
 ---
 
+### 38. Standard Terms & Conditions on Xero Quotes
+**Status:** 📋 Planned
+**Priority:** Medium
+**Labels:** `feature`, `xero-api`, `financial`, `settings`
+
+Quotes created from the Financial tab (`POST /api/projects/:id/quote` in `invoiceRoutes.ts`) go out without our standard terms & conditions. The T&Cs that appear on quotes created in the Xero web app are a default applied by the Xero UI — they are **not** applied when a quote is created via the API, and Xero's API does **not** expose the organisation's default quote/invoice terms text (the `BrandingThemes` and `Organisation` endpoints don't return it). So we can't pull them from Xero.
+
+**Approach:** store the T&Cs in VisualOS and send them on every quote.
+
+- Add `defaultQuoteTerms String?` to `SystemSettings` (alongside `termsUrl` / `defaultInvoiceDays`).
+- Surface it as a textarea in Settings → Admin → Invoicing (admin only) — paste the standard T&Cs once.
+- In the quote payload, set `terms` from the setting: `...(settings.defaultQuoteTerms && { terms: settings.defaultQuoteTerms })`. (Xero `Quote.terms`, max 4000 chars.)
+
+**Acceptance Criteria:**
+- [ ] `defaultQuoteTerms` field on `SystemSettings` + migration
+- [ ] Editable textarea in Settings → Admin → Invoicing
+- [ ] `terms` populated on every created Xero quote when the setting is non-empty
+- [ ] `ReleasesPanel.tsx` updated
+
+**Notes:** consider applying the same to invoices later. Multi-tenant: this becomes per-org terms under #32.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -338,6 +372,7 @@ The Notes tab has been hidden. Notes should be surfaced inline on the Details ta
 6. Project Scaffolding / Decision Tree Wizard (#31)
 7. Multi-Tenancy / Organisation Layer (#32)
 8. Admin Integration Settings Page (#33)
+9. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
 1. Move Notes onto Project Details Tab (#37)
@@ -364,4 +399,4 @@ The Notes tab has been hidden. Notes should be surfaced inline on the Details ta
 
 ---
 
-**Last Updated:** March 27, 2026 — Shipped project Timesheets tab, multi-photo upload, task type badges, design approval confirmation token flow, task edit project picker
+**Last Updated:** June 24, 2026 — Shipped Xero quote/invoice creation, other expenses, live timesheet timer, multi-staff financial rows, stage-gated tasks, PO/Ref field, mileage tracking, enquiry form, overview page, status history. Added #38 (standard T&Cs on Xero quotes).
