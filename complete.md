@@ -4,6 +4,17 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### July 2026 — Financial Overview (Invoicing vs Budget) + persisted Financial tab toggles
+**Labels:** `feature`, `financial`, `admin-only`, `reporting`, `xero`, `budget`, `fix`
+
+- **Financial Overview page** (`/financial-overview`, admin only) — compares invoiced **contribution** for a month against the monthly budgeted expenditure. Two Recharts radial gauges: **Coverage** (month's contribution ÷ monthly budget; 100% = break-even, over 100% = profit) and **Pace** (scaled by how far through the month we are; hidden for future months). Month picker (Auckland-default) with back/forward arrows, a header stat row, a per-invoice drill-down, and a gaps panel.
+- **Contribution metric** — `xeroTotal − pro-rated (materials + expenses) cost`, labour left in (wages are already a Budget line, so subtracting staff cost would double-count). Multiple invoices per project bucket independently by their own Xero date, with direct cost split across them in proportion to value. Cost side is always actual-else-estimate, independent of the Financial tab's charge toggles. All maths lives in `utils/financialOverview.ts`, fully unit-tested; month bucketing + elapsed fraction computed in Pacific/Auckland.
+- **`ProjectInvoice.xeroInvoiceDate`** — new nullable column, captured from the Xero invoice `Date` on create / link / refresh. One-off admin-only backfill endpoint (`POST /api/admin/backfill-invoice-dates`) for existing rows — remove after running in prod.
+- **"No invoice" badge on Home** — orange badge next to projects at an `expectsInvoice` stage (`meta.expectsInvoice` on `project_stage` taxonomy; seeded on Invoice + Completed, toggleable in Settings → Lists) with no linked invoice. Home query gains a lightweight `_count.invoices`.
+- **§14 — persisted Financial tab Est/Act + Charge toggles** — six new `financial*` fields (`financialUseActual` default false, `financialChargeable` default true) on `Task`, `ProjectMaterial`, `ProjectExpense`. The tab now reads them from the row instead of local state and PATCHes on change (optimistic, revert on error), so selections survive reload. Migration defaults leave existing projects rendering identically.
+
+---
+
 ### June 2026 — Live Timesheet Timer, Multi-Staff Financials, Stage-Gated Tasks, PO/Ref
 **Labels:** `feature`, `fix`, `timesheets`, `financial`, `tasks`, `xero`
 
