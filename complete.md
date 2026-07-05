@@ -12,6 +12,7 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 - **`ProjectInvoice.xeroInvoiceDate`** — new nullable column, captured from the Xero invoice `Date` on create / link / refresh. One-off admin-only backfill endpoint (`POST /api/admin/backfill-invoice-dates`) for existing rows — remove after running in prod.
 - **"No invoice" badge on Home** — orange badge next to projects at an `expectsInvoice` stage (`meta.expectsInvoice` on `project_stage` taxonomy; seeded on Invoice + Completed, toggleable in Settings → Lists) with no linked invoice. Home query gains a lightweight `_count.invoices`.
 - **§14 — persisted Financial tab Est/Act + Charge toggles** — six new `financial*` fields (`financialUseActual` default false, `financialChargeable` default true) on `Task`, `ProjectMaterial`, `ProjectExpense`. The tab now reads them from the row instead of local state and PATCHes on change (optimistic, revert on error), so selections survive reload. Migration defaults leave existing projects rendering identically.
+- **Gaps cutoff date** — `SystemSettings.financialOverviewStartDate` (seeded 1 Jun 2026, editable in Settings → Admin → Invoicing; null = no cutoff). The "projects missing invoice" list only flags jobs that reached their current invoice-expecting stage on or after the cutoff (compared as NZ calendar dates via `ProjectStatusLog`); completed jobs with no recorded stage-change date are excluded. Pure `filterProjectsMissingInvoice` helper, unit-tested.
 
 ---
 
