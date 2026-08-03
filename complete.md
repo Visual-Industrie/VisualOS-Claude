@@ -4,6 +4,18 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### August 2026 — Roles & Permissions (RBAC)
+**Labels:** `feature`, `security`, `admin`, `settings`, `refactor`
+
+- **Replaces `User.isAdmin`** with admin-managed roles, each holding a set of permission keys. `Role` (name, description, `isSystemAdmin`, `isProtected`, `permissions` JSON, `sortOrder`), `User.roleId`, `SystemSettings.defaultRoleId`. Seeded with **Admin** (`isSystemAdmin` — implicit grant of every key, present and future, so a new feature can never lock the admins out) and **Production Staff**. `isAdmin` stays for one release, mirrored from the role, and is dropped in #40.
+- **`src/permissions/registry.ts`** is the single source of truth. Keys are permanent; unknown keys are ignored on read and stripped on write, so a feature can be deleted without a data migration. Tabs carry a **`.view` / `.edit` pair** (`.edit` without `.view` grants nothing — the surface is hidden, so it fails closed); pages and sensitive actions are single keys. The `action.*` group is reserved for capabilities that aren't simply "write to one surface" — invoicing, customer email, deletion, cost-rate visibility.
+- **Backend enforcement** — `requirePermission(key)` / `requireAnyPermission(...)` on every route that had `ensureAdmin`, plus ~20 endpoints that were previously open to any authenticated user (project create/delete, contact create, both Xero syncs, design send-approval, and the survey / completion-photo / vinyl / Gmail endpoints behind their tabs). `PATCH /api/projects/:id` checks the payload rather than the route, since it serves both field edits and stage changes.
+- **Two rules that couldn't sit on a route** — `sanitiseStaff()` deletes `costPricePerHour` from every staff response (including nulls) unless the caller holds `action.staff.view-cost-rates`, keeping `GET /api/staff` open for task pickers and Shop Floor; and time-entry edit/delete is limited to your own entries without `action.timesheet.edit-others` (previously anyone logged in could change anyone's hours).
+- **Frontend** — `PermissionsContext` (fed from `/auth/status`, which returns the fully-resolved key list, so admins need no special-casing), `<Can>`, `<RequirePermission>`, `<NoAccessScreen>`. Sidebar links and routes come from one `NAV_ITEMS` array; project, contact and settings tab strips are permission-filtered config arrays that fall back to the first permitted tab. An axios interceptor toasts the middleware's `{ error: 'forbidden' }` shape as a backstop. First slice of #11 (global state via Context).
+- **Settings → Roles** — role list plus a permission matrix grouped by area, with per-group "All" and a View/Edit pair per tab (ticking Edit auto-ticks View). Admin renders all-checked and disabled with an explanatory alert. Role assignment from the Staff tab or the Roles tab's login-accounts list. Four lockout guards enforced server-side and mirrored in the UI: no changing your own role, no removing your own Roles access, the last admin can't be demoted, built-in roles can't be deleted (plus a fifth — the default role for new logins can't be deleted).
+
+---
+
 ### July 2026 — Financial Overview (Invoicing vs Budget) + persisted Financial tab toggles
 **Labels:** `feature`, `financial`, `admin-only`, `reporting`, `xero`, `budget`, `fix`
 
