@@ -80,36 +80,44 @@ yarn storybook       # Component explorer at port 6006
   - `gmailRoutes` — Gmail thread list/view + search + label-thread
   - `xeroRoutes` — Xero OAuth + project/contact sync
   - `authRoutes` — Google OAuth, session status, Drive token exchange
-  - `settingsRoutes` — SystemSettings CRUD (admin-gated for writes)
+  - `settingsRoutes` — SystemSettings CRUD; reads gated on `settings.tab.admin.view` / `settings.tab.templates.view`, writes on the matching `.edit`
   - `userRoutes` — current user info
   - `projectContactRoutes` — per-project contacts (`/api/projects/:id/contacts`)
   - `portalRoutes` — public token-gated portal (no auth middleware) — validate token, PDF proxy, request-mfa, verify-mfa, approve, feedback CRUD, reissue. Mounted at `/portal` (no `/api` prefix).
-  - `featureRequestRoutes` — staff feature request submissions (`GET`/`POST` any user, `PATCH` admin only)
+  - `featureRequestRoutes` — staff feature request submissions (`GET`/`POST` any authed user, `PATCH` needs `settings.tab.backlog.edit`)
   - `surveyRoutes` — site survey + photo upload to Drive
   - `deliverableRoutes` — deliverables CRUD
   - `completionPhotoRoutes` — completion photo upload to Drive
   - `calendarRoutes` — Google Calendar list + GCal events overlay (`/api/calendar/calendars`, `/api/calendar/events`); per-project schedule CRUD (`/api/projects/:id/schedule`); all-projects schedule (`/api/schedule`); syncs events to Google Calendar via `studio@vil.nz`
   - `materialRoutes` — materials/products
   - `taxonomyRoutes` — CRUD for `TaxonomyItem` (`/api/taxonomy/:type`); PATCH cascades renames to `Project.status` or `Material.category` in a DB transaction; valid types: `project_stage`, `material_category`, `task_type`
-  - `staffRoutes` — CRUD for `StaffMember` (`GET` any authed user, `GET /xero-users` admin only, `POST`/`PATCH`/`DELETE` admin only); 409 on duplicate email
-  - `timesheetRoutes` — `GET /` (admin all entries, filterable by dateFrom/dateTo/staffMemberId/projectId), `GET /mine` (current user's entries resolved via email → StaffMember), `POST /` (create manual entry), `PATCH /:id` (supports notes field), `DELETE /:id`
+  - `staffRoutes` — CRUD for `StaffMember`. `GET /` is open to any authed user (task pickers, Shop Floor, schedule all need it) but `costPricePerHour` is stripped without `action.staff.view-cost-rates`; writes need `settings.tab.staff.edit`; 409 on duplicate email
+  - `timesheetRoutes` — `GET /` (all staff entries, filterable by dateFrom/dateTo/staffMemberId/projectId; needs either `settings.tab.timesheets.view` or `project.tab.timesheets.view`, since it serves both surfaces), `GET /mine` (current user's entries resolved via email → StaffMember), `POST /` (create manual entry), `PATCH /:id` (supports notes field), `DELETE /:id` — both limited to your own entries without `action.timesheet.edit-others`
   - `shopfloorRoutes` — `GET /tasks` (today's tasks for a staff member — active, future, completed; params: staffMemberId, localDate, utcOffsetMinutes); `POST /tasks/:id/start|stop|complete|undo`
-  - `verifoneRoutes` — `POST /sync` (admin only — fetches new Verifone EFTPOS reports), `GET /transactions` (admin only — paginated transaction list by date range)
+  - `verifoneRoutes` — `POST /sync` (`settings.tab.eftpos.edit` — fetches new Verifone EFTPOS reports), `GET /transactions` (`settings.tab.eftpos.view` — paginated transaction list by date range)
   - `vinylRoutes` — vinyl layout calculations per-project at `/api/projects/:projectId/vinyl-calculations` (CRUD)
   - `quoteRequestRoutes` — public (no auth) `POST /api/quote-requests`; origin-locked to `visualindustrie.co.nz`; rate-limited 10/IP/hour; fuzzy contact matching; creates Project + Note + Task + `QuoteRequest` audit record; sends internal notification email; mounted before auth routes
   - `invoiceRoutes` — per-project Xero invoice + quote create/link/unlink/refresh (`/api/projects/:id/invoice`, `/invoices/link`, `/invoices/:invoiceId/refresh`, `/quote`, etc); captures `ProjectInvoice.xeroInvoiceDate` from the Xero invoice `Date` on create/link/refresh
-  - `financialOverviewRoutes` (admin only) — `GET /api/financial-overview?month=YYYY-MM` (invoiced contribution vs monthly budget: coverage, pace, per-invoice drill-down, gaps report); `POST /api/admin/backfill-invoice-dates` (one-off — fills `xeroInvoiceDate`/`xeroTotal` on existing invoices from Xero; **remove after running in prod**). All money maths lives in `utils/financialOverview.ts`
+  - `roleRoutes` — `GET /api/permissions` (any authed), roles CRUD, `GET /api/roles/users` (login accounts), `PATCH /api/users/:id/role`. Invalid permission keys are stripped on write, not rejected, so a stale client can't wipe keys it doesn't know about
+  - `financialOverviewRoutes` — `GET /api/financial-overview?month=YYYY-MM` (`page.financial-overview`; invoiced contribution vs monthly budget: coverage, pace, per-invoice drill-down, gaps report); `POST /api/admin/backfill-invoice-dates` (one-off — fills `xeroInvoiceDate`/`xeroTotal` on existing invoices from Xero; **remove after running in prod**). All money maths lives in `utils/financialOverview.ts`
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
-- **`utils/ensureAdmin.ts`**: Admin-only middleware — returns 403 if `req.user.isAdmin` is falsy.
 - **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded).
 - **`utils/emailTemplates.ts`**: `renderTemplate(prisma, key, context)` — fetches `EmailTemplate` from DB and interpolates shortcodes. `TEMPLATE_SHORTCODES` registry defines available shortcodes per template key for the admin editor. Composite shortcodes (`[viewApproveButton]`, `[statusBadge]`) are built automatically from context.
 - **`utils/portalAudit.ts`**: `logPortalEvent()` — writes structured events to `PortalAuditLog` (token_accessed, mfa_sent, mfa_verified, approval_submitted, etc). Failures are non-fatal.
 - **`utils/financialOverview.ts`**: pure, unit-tested money maths for the Financial Overview — `materialsCost`, `expensesCost`, `invoiceContributions` (pro-rates a project's direct cost across its invoices by value; labour deliberately left in, since wages are a Budget line), `normaliseBudgetToMonthly`, `elapsedFraction`/`aucklandDateString` (Pacific/Auckland via `Intl`, no dayjs), `coverage`, `pace`, and `filterProjectsMissingInvoice` (cutoff filter for the gaps list).
+- **`permissions/registry.ts`**: source of truth for permission keys, grouped into `pages` / `project-tabs` / `contact-tabs` / `settings-tabs` / `actions`. Keys are **permanent** — rename the `label`, never the key. Tabs are `.view`/`.edit` pairs; `.edit` without `.view` grants nothing. Unknown keys are ignored on read and stripped on write. Exposed via `GET /api/permissions`.
+- **`utils/permissions.ts`**: `rolePermissions(role)` (expands `isSystemAdmin` to every key, filters unregistered ones) and `hasPermission(user, key)`. Passport's `deserializeUser` includes the role, so a check is an array lookup, not a query.
+- **`utils/requirePermission.ts`**: `requirePermission(key)` and `requireAnyPermission(...keys)` route guards — 401 unauthenticated, 403 `{ error: 'forbidden', requiredPermission }`.
+- **`utils/roleGuards.ts`**: pure lockout rules for role CRUD and assignment (no self-role-change, no removing your own Roles access, last admin protected, built-in roles undeletable, default role undeletable). Returns a message or null; the route turns it into a 409.
+- **`utils/sanitiseStaff.ts`**: strips `costPricePerHour` from staff responses unless the caller holds `action.staff.view-cost-rates`. `GET /api/staff` stays open to all authed users (task pickers, Shop Floor, schedule need it), so the field is removed per-caller instead.
+- **`utils/timeEntryAccess.ts`**: time entry ownership — edits/deletes are limited to your own entries unless you hold `action.timesheet.edit-others`.
 - **`utils/financialToggles.ts`**: `financialTogglePatch(body)` — shared partial-update builder for the persisted Financial tab toggles (`financialUseActual`/`financialChargeable`), used by the Task / ProjectMaterial / ProjectExpense PATCH routes.
 - **`prisma/schema.prisma`**: Source of truth for data models.
 
 **Notification email recipient resolution** (`resolveNotificationRecipient` in `projectRoutes.ts`): resolves in order — (1) primary project contact (`isPrimary=true`), (2) any project contact (first added), (3) organisation contact via `project.xeroContactId → Contact.emailAddress`. Use this helper for all job notification emails. Design approval emails use the same pattern inline in `designFileRoutes.ts`.
+
+Authorisation is role-based: `User.roleId` → `Role.permissions` (a flat `string[]` of registry keys). `Role.isSystemAdmin` is an implicit grant of every key, present and future. **The backend is the authority** — frontend hiding is UX only, so every gated route must also be enforced server-side. `SystemSettings.defaultRoleId` is assigned to brand-new accounts on first login; a null role fails every check.
 
 Authentication is session-based (express-session + **connect-pg-simple** PostgreSQL session store — sessions persist across backend rebuilds/restarts). Google OAuth tokens are stored on the `User` model for Gmail/Drive access. Xero has a separate OAuth flow stored on the same `User` model.
 
@@ -126,11 +134,11 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned; Notes tab is hidden (backlog #37 to move inline to Details)
   - `Portal.page.tsx` — public client portal (no auth)
   - `CalendarPage.tsx` — master calendar view (all projects); GCal events overlay (public holidays, personal events) deduplicated against VisualOS `googleEventId`; all-day events parsed as local time; clicking VisualOS event shows detail modal with "Open project schedule" link; clicking GCal event opens in Google Calendar; calendar filter dropdown; colour key
-  - `Settings.tsx` — tabbed settings page: General, Admin (admin only), Templates (admin only — email + page templates, Select dropdown picker), EFTPOS (admin only), Staff (admin only), Lists (admin only — taxonomy editor), Backlog (all users), Releases (all users)
+  - `Settings.tsx` — tabbed settings page: General, Admin, Templates, EFTPOS, Staff, Lists, Vehicles, Budget, Timesheets, Mileage, Roles, Backlog, Releases. Tab visibility is driven by `SETTINGS_TABS` filtered on each tab's `settings.tab.*.view` key — no `isAdmin` checks
   - `ShopFloor.page.tsx` — tablet-optimised production floor view at `/shopfloor`; no AppShell/nav; `StaffPickerOverlay` on first visit (selection persisted to localStorage); shows active, upcoming, and completed tasks for the selected staff member; start/stop/complete/undo actions with optimistic updates; task type + project filter chips; auto-refresh every 60s; `UnavailableScreen` if backend unreachable on initial load; design preview modal (Google Drive iframe, full-screen)
   - `MyTimesheet.page.tsx` — staff time entry view at `/my-timesheet`; entries grouped by day with totals; date range filter (DatePickerInput); add/edit/delete entries; manual vs timer badge
   - `AdminTimesheets.page.tsx` — admin time entry view at `/timesheets`; all staff entries in a table; filters for date range and staff member; totals summary per staff member at bottom
-  - `FinancialOverview.page.tsx` — admin-only page at `/financial-overview` (sidebar link admin-gated); month picker (Auckland default) + back/forward arrows; header stat row; two `RatioGauge`s (Coverage, Pace — Pace hidden for future months); per-invoice drill-down; gaps panel (invoices missing a total with one-click refresh, and expectsInvoice-stage projects with no invoice). Reads `GET /api/financial-overview?month=YYYY-MM`
+  - `FinancialOverview.page.tsx` — page at `/financial-overview`, gated on `page.financial-overview` (sidebar link and route both); month picker (Auckland default) + back/forward arrows; header stat row; two `RatioGauge`s (Coverage, Pace — Pace hidden for future months); per-invoice drill-down; gaps panel (invoices missing a total with one-click refresh, and expectsInvoice-stage projects with no invoice). Reads `GET /api/financial-overview?month=YYYY-MM`
 - **`components/`**: Reusable UI:
   - `Tasks/TaskList`, `Tasks/TaskModal` (`showProjectPicker` prop shows project dropdown — used for both add and edit on My Tasks page; edit pre-fills current project), `Tasks/TaskItem` (shows task type badge)
   - `Project/Tabs/DesignTab` — design file upload + approval send
@@ -151,6 +159,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Settings/ReleasesPanel` — static changelog grouped by date
   - `Settings/EmailTemplatesPanel` — admin editable email + page templates; Select dropdown to pick template; shortcode click-to-insert; HTML preview
   - `Settings/StaffPanel` — staff CRUD (name, email, colour, Xero/GCal mapping, active toggle); admin only
+  - `Settings/RolesPanel` — role list + permission matrix (one card per group, View/Edit pair per tab, per-group "All", sticky Save/Cancel). Admin renders all-checked and disabled with an explanatory alert. Includes the "Login accounts" list for assigning a role to an account with no staff record. Matrix shaping and toggle rules live in `Settings/rolePermissionMatrix.ts` (pure, unit-tested) — ticking Edit auto-ticks View, unticking View unticks Edit
   - `Settings/TaxonomyPanel` — editable taxonomy sections; `TaxonomySection` is reusable per type; project stages support flags: `showInKanban`, `closesXero`, `sendNotification` (auto-email on status change), `canNotifyCustomer` (enables manual Notify button), `showOnOverview`, `expectsInvoice` (drives the Home "No invoice" badge + Financial Overview gaps list); badge colours from Mantine colour names
 - **`components/ShopFloor/`**: Shop floor tablet components — `ShopFloorTaskCard` (task card with start/stop/complete/undo buttons, time-tracking progress bar against `estimatedMinutes`, design preview button, staff badge, task type badge); `ShopFloorHeader` (staff name + colour dot, last-refreshed time, "Switch user" button); `StaffPickerOverlay` (full-screen staff picker on first visit); `TaskTypeFilterBar` (filter chips by task type); `CompletedTaskSection` (collapsible completed tasks with undo).
 - **`components/UnavailableScreen`**: Shown on Shop Floor if backend is unreachable on initial load (network error with no response).
@@ -159,18 +168,24 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
 - **`types/shopfloor.ts`**: `IShopFloorTask`, `IShopFloorResponse`, `IShopFloorStaff`, `ITimeEntry`.
 - **`types/timesheet.ts`**: `ITimesheetEntry`, `entryDurationMinutes()`, `formatDuration()`.
 - **`types/taxonomy.ts`**: `ITaxonomyItem` interface + `taxonomyLabel(item)` helper (returns `label ?? name`).
+- **`contexts/PermissionsContext.tsx`**: `usePermissions()` → `{ can, canAny, permissions, role, user, isLoggedIn, isLoading, refresh }`. Fed from `/auth/status`, which returns the **fully resolved** key list (admins get every key expanded), so nothing special-cases admins. Supersedes `useAuthStatus` as the source of the current user. In dev, `can()` warns about a key the server doesn't know.
+- **`components/Permissions/`**: `<Can permission=... anyOf=... fallback=...>` for controls, `<RequirePermission permission=... what=...>` for route elements, `<NoAccessScreen>` for the denied case (a screen, never a redirect — redirects make deep links look broken and loop when home is also unpermitted).
+- **`types/permissions.ts`**: `PermissionKey` string-literal union mirroring the backend registry — keep the two in sync when adding a key.
+- **`utils/permissionTabs.ts`**: `visibleTabs()` / `resolveActiveTab()` — filter a tab config array by permission and fall back to the first permitted tab (null when none, which the page turns into `<NoAccessScreen>`).
+- **`utils/forbiddenInterceptor.ts`**: global axios 403 handler; toasts the middleware's `{ error: 'forbidden' }` shape only, so a route's own 403 messages survive.
 - **`hooks/useTaxonomy.ts`**: `useTaxonomy(type, includeArchived?)` — fetches taxonomy items with module-level 5-min cache. Call `invalidateTaxonomyCache(type?)` after writes. Used across Home, Dashboard, Project, Materials, Deliverables.
 - **`utils/notifications.ts`**: Wrapper around Mantine notifications for toast messages.
 - **`utils/driveToken.ts`**: `getDriveAccessToken()` — calls `GET /auth/drive-token` to exchange the stored refresh token for a short-lived Drive access token.
 - **`hooks/useAuthStatus.ts`**: Checks login state on app load.
 
-State management is local `useState`/`useEffect` per component — no global state yet (planned via React Context). HTTP calls use Axios with `withCredentials: true` for cookie auth.
+State management is local `useState`/`useEffect` per component, except for `PermissionsContext` and `TaskContext` (the first slices of the planned global-state work, backlog #11). HTTP calls use Axios with `withCredentials: true` for cookie auth.
 
 ### Data Models (Prisma)
 
-Key models: `User`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`.
+Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`.
 
-- `User` has `isAdmin Boolean @default(false)` — `bren@vil.nz` and `bev@vil.nz` are seeded as admins via migration
+- `User` has `roleId` → `Role`. `isAdmin` is legacy: nothing reads it, it's mirrored from `role.isSystemAdmin` on assignment, and it's dropped in backlog #40
+- `Role` — named bundle of permission keys (`permissions` JSON `string[]`). `isSystemAdmin` = implicit grant of everything; `isProtected` = seeded, can't be deleted or have `isSystemAdmin` toggled (Admin + Production Staff). Takes an `organisationId` FK when multi-tenancy (#32) lands
 - `Project` has a FK to `Contact` (Xero contact), plus optional `driveFolderId`/`driveFolderName`
 - `Project.status` is a free-text field driven by `TaxonomyItem` (type=`project_stage`). Valid values and their behaviour come from taxonomy — do not hardcode. PATCH `/api/projects/:id` validates against the live taxonomy list.
 - `TaxonomyItem` — generic extensible table (`type`, `name`, `label`, `colour`, `isArchived`, `sortOrder`, `meta` JSON). Types: `project_stage` (meta flags: `showInKanban`, `closesXero`, `sendNotification`, `canNotifyCustomer`, `showOnOverview`, `expectsInvoice`), `material_category`, and `task_type`. Renaming cascades to all downstream records in a transaction.
@@ -257,6 +272,7 @@ VITE_GOOGLE_API_KEY=        # set via GH Actions secret
 - **Never merge to the base branch without explicit permission.** Open a PR and wait. Do not merge until the user has tested locally and either says "merge" or explicitly authorises it. When a PR is ready, ask: "Ready to merge?" and wait for confirmation.
 - **Restart express_api after every backend PR.** After opening a backend PR (and before merging), always restart the local dev container so the user can test the latest code: `docker restart express_api`. If the PR is frontend-only, no restart is needed.
 - **ALWAYS update the releases list — no exceptions.** Every merged feature, fix, or refactor MUST include an entry in `projects-frontend/src/components/Settings/ReleasesPanel.tsx`. This applies to every PR, including small bug fixes. Prepend to the matching date entry or create a new one. Write in plain English from the user's perspective (what changed and why it matters to them). Commit the releases update in the same PR as the change — never as a follow-up. If a PR is raised without a releases entry, it is not complete.
+- **Every new page, tab, or sensitive action needs a permission key.** Add it to `projects-backend/src/permissions/registry.ts`, mirror it in `projects-frontend/src/types/permissions.ts`, gate the route with `requirePermission()`, and gate the UI with `can()` / `<Can>`. Tabs get a `.view`/`.edit` pair; pages and actions get a single key. New keys default to **off** for every non-admin role and are implicitly granted to `isSystemAdmin` roles. Never hardcode `isAdmin`.
 - **Write tests for every new function/route.** Backend: add a test in a `*.test.ts` file alongside the route. Frontend: add a Vitest unit test for any new utility or hook.
 - **Prisma migration drift**: the `session` table (created by `connect-pg-simple`) causes drift warnings with `prisma migrate dev`. Workaround: create the migration SQL manually → apply via `psql` → mark applied with `npx prisma migrate resolve --applied <name>`.
 

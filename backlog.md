@@ -33,7 +33,7 @@ This document tracks planned and in-progress features. Completed items live in `
 - Contacts system: full Xero sync, webhook, local DB, contacts list + detail pages
 - Drive folder picker: link a Google Drive folder to any project (backend drive-token endpoint, stored per-project)
 - Drive folder picker smart defaults: project picker opens in client's Drive folder; Brand Assets picker opens in system base folder
-- Admin role: `isAdmin` flag on User; bren + bev seeded as admins
+- Roles & permissions (RBAC): admin-managed roles, each holding a set of permission keys from `src/permissions/registry.ts`. Tabs carry `.view`/`.edit` pairs; pages and sensitive actions are single keys. Seeded with Admin (implicit full access, present and future) and Production Staff. Enforced server-side by `requirePermission()`, mirrored in the UI by `usePermissions()`/`<Can>`.
 - System Settings: single-row `SystemSettings` model stores base Drive folder (admin-only Settings page)
 - Persistent sessions: `connect-pg-simple` PostgreSQL session store — logins survive backend restarts/rebuilds
 - Silent Drive token refresh: `getDriveAccessToken()` utility + `/auth/drive-token` backend endpoint
@@ -359,6 +359,22 @@ Quotes created from the Financial tab (`POST /api/projects/:id/quote` in `invoic
 
 ---
 
+### 40. Remove `User.isAdmin`
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `cleanup`, `migration`, `rbac`
+
+Cleanup left behind by roles & permissions (#39). `User.isAdmin` is superseded by `User.roleId` — nothing reads it any more, and role assignment mirrors it purely so an unmigrated reader can't go stale. Drop the column and the mirroring.
+
+**Acceptance Criteria:**
+- [ ] `isAdmin` removed from `schema.prisma` + migration
+- [ ] `isAdmin` mirroring removed from `PATCH /api/users/:id/role` in `roleRoutes.ts`
+- [ ] `isAdmin` removed from the frontend `User` type
+- [ ] No remaining `isAdmin` references (`grep -r isAdmin`)
+- [ ] `ReleasesPanel.tsx` updated
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -377,6 +393,7 @@ Quotes created from the Financial tab (`POST /api/projects/:id/quote` in `invoic
 
 ### Low Priority / Cleanup
 1. Move Notes onto Project Details Tab (#37)
+2. Remove `User.isAdmin` (#40) — cleanup migration after #39
 2. Vitest Setup (Backend) (#12)
 3. Remove `xeroContactName` from Project (#14) — cleanup migration
 4. Business Intelligence Dashboard (#23)
