@@ -70,7 +70,7 @@ yarn storybook       # Component explorer at port 6006
 
 ### Backend (`src/`)
 
-- **`index.ts`**: Express app entry. Configures CORS, session cookies, Passport Google OAuth, mounts all routes. Contains `allowedEmails` hardcoded allowlist.
+- **`index.ts`**: Express app entry. Configures CORS, session cookies, Passport Google OAuth, mounts all routes. The Google verify callback gates login through `checkStaffLogin()` — no hardcoded allowlist.
 - **`routes/`**: One file per domain:
   - `projectRoutes` — CRUD + Drive folder creation + DELETE (cascading)
   - `contactRoutes` — Xero contact sync + webhook
@@ -102,6 +102,7 @@ yarn storybook       # Component explorer at port 6006
   - `financialOverviewRoutes` — `GET /api/financial-overview?month=YYYY-MM` (`page.financial-overview`; invoiced contribution vs monthly budget: coverage, pace, per-invoice drill-down, gaps report); `POST /api/admin/backfill-invoice-dates` (one-off — fills `xeroInvoiceDate`/`xeroTotal` on existing invoices from Xero; **remove after running in prod**). All money maths lives in `utils/financialOverview.ts`
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
+- **`utils/staffLoginGate.ts`**: `checkStaffLogin(prisma, email)` — the login gate. Returns `{ allowed }` plus a denial reason (`no_email` / `not_staff` / `inactive`) and the normalised email. `logDeniedLogin()` writes the warn-level audit line. The user-facing message is deliberately vague about which check failed.
 - **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded).
 - **`utils/emailTemplates.ts`**: `renderTemplate(prisma, key, context)` — fetches `EmailTemplate` from DB and interpolates shortcodes. `TEMPLATE_SHORTCODES` registry defines available shortcodes per template key for the admin editor. Composite shortcodes (`[viewApproveButton]`, `[statusBadge]`) are built automatically from context.
 - **`utils/portalAudit.ts`**: `logPortalEvent()` — writes structured events to `PortalAuditLog` (token_accessed, mfa_sent, mfa_verified, approval_submitted, etc). Failures are non-fatal.
@@ -121,6 +122,8 @@ Authorisation is role-based: `User.roleId` → `Role.permissions` (a flat `strin
 
 Authentication is session-based (express-session + **connect-pg-simple** PostgreSQL session store — sessions persist across backend rebuilds/restarts). Google OAuth tokens are stored on the `User` model for Gmail/Drive access. Xero has a separate OAuth flow stored on the same `User` model.
 
+**Who may log in** is a database question: the Google verify callback calls `checkStaffLogin()` (`utils/staffLoginGate.ts`), which allows an email only if it has a `StaffMember` record with `isActive=true`. Any domain works, so contractors on a personal address can be onboarded from Settings → Staff; unticking Active blocks the next login. Denials are logged at warn level and redirect to the frontend `/login-failed` page — no `User` row is created for a denied email.
+
 **Drive token endpoint:** `GET /auth/drive-token` exchanges the stored `google_refresh_token` for a short-lived access token using the googleapis `OAuth2Client`. Frontend calls this via `getDriveAccessToken()` utility (`src/utils/driveToken.ts`) before opening the Google Picker — silently refreshes without user interaction.
 
 The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verification — no session auth.
@@ -133,6 +136,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Dashboard.page.tsx` — Kanban board (drag-and-drop status columns)
   - `Project.tsx` — multi-tab project detail view; header has "View in Xero" + "Delete project" buttons right-aligned; Notes tab is hidden (backlog #37 to move inline to Details)
   - `Portal.page.tsx` — public client portal (no auth)
+  - `LoginFailed.page.tsx` — where the backend's OAuth failure redirect lands (`/login-failed`, ungated); explains the two staff-gate denial causes and offers a retry
   - `CalendarPage.tsx` — master calendar view (all projects); GCal events overlay (public holidays, personal events) deduplicated against VisualOS `googleEventId`; all-day events parsed as local time; clicking VisualOS event shows detail modal with "Open project schedule" link; clicking GCal event opens in Google Calendar; calendar filter dropdown; colour key
   - `Settings.tsx` — tabbed settings page: General, Admin, Templates, EFTPOS, Staff, Lists, Vehicles, Budget, Timesheets, Mileage, Roles, Backlog, Releases. Tab visibility is driven by `SETTINGS_TABS` filtered on each tab's `settings.tab.*.view` key — no `isAdmin` checks
   - `ShopFloor.page.tsx` — tablet-optimised production floor view at `/shopfloor`; no AppShell/nav; `StaffPickerOverlay` on first visit (selection persisted to localStorage); shows active, upcoming, and completed tasks for the selected staff member; start/stop/complete/undo actions with optimistic updates; task type + project filter chips; auto-refresh every 60s; `UnavailableScreen` if backend unreachable on initial load; design preview modal (Google Drive iframe, full-screen)
