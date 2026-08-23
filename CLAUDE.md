@@ -112,6 +112,7 @@ yarn storybook       # Component explorer at port 6006
 - **`utils/roleGuards.ts`**: pure lockout rules for role CRUD and assignment (no self-role-change, no removing your own Roles access, last admin protected, built-in roles undeletable, default role undeletable). Returns a message or null; the route turns it into a 409.
 - **`utils/sanitiseStaff.ts`**: strips `costPricePerHour` from staff responses unless the caller holds `action.staff.view-cost-rates`. `GET /api/staff` stays open to all authed users (task pickers, Shop Floor, schedule need it), so the field is removed per-caller instead.
 - **`utils/timeEntryAccess.ts`**: time entry ownership — edits/deletes are limited to your own entries unless you hold `action.timesheet.edit-others`.
+- **`utils/projectStatusLog.ts`**: `logProjectStatus(client, { projectId, status, actor, at })` — the single shaper for `ProjectStatusLog` rows, plus `INITIAL_PROJECT_STAGE` (`'New'`). Both creation paths write an entry stamped with the project's own `createdAt`, so the log opens with the date the job was added; the status-change route uses it without `at`.
 - **`utils/financialToggles.ts`**: `financialTogglePatch(body)` — shared partial-update builder for the persisted Financial tab toggles (`financialUseActual`/`financialChargeable`), used by the Task / ProjectMaterial / ProjectExpense PATCH routes.
 - **`prisma/schema.prisma`**: Source of truth for data models.
 
@@ -205,6 +206,7 @@ Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `
 - `Deliverable` — physical sign component linked to a project; tracks type, dimensions, material, laminate, and optional cutting diagram Drive file
 - `Material` — substrate/vinyl/laminate catalogue; optionally linked to Xero items
 - `StaffMember` — UUID id, unique email, name, displayColour, optional `xeroUserId` and `googleCalendarId` mappings, `isActive` flag; email is used to look up the current user's staff record for `/timesheets/mine` and Shop Floor
+- `ProjectStatusLog` — stage *entry* events. Written on every status change and on project creation (stamped with the project's `createdAt`). `isBackfilled` marks rows reconstructed by the creation backfill — `utils/projectVelocity.ts` ignores them when working out when stage tracking began, since they exist for every project ever created
 - `Note.userId` is nullable — system-generated notes (e.g. from quote request intake) omit the userId
 - `Contact.source` and `Project.source` — optional string field (`'xero'` | `'quote_request'` | null); set on new web-form leads
 - `QuoteRequest` — audit log for every inbound quote form submission; stores all fields plus `matchStrategy` (`'email'` | `'fuzzy_name'` | `'none'`), `contactId`, `projectId`; `src/utils/fuzzyMatch.ts` exports `normalise()` and `tokenOverlapScore()` (70% token overlap threshold)
