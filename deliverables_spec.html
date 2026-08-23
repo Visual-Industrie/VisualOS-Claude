@@ -1,0 +1,215 @@
+
+<div style="padding: 1.5rem 0;">
+  <div style="background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="width: 40px; height: 40px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; font-size: 18px;">📄</div>
+      <div>
+        <div style="font-size: 14px; font-weight: 500; color: var(--color-text-primary);">deliverables-spec.md</div>
+        <div style="font-size: 12px; color: var(--color-text-tertiary);">Markdown — ready for Claude Code</div>
+      </div>
+    </div>
+    <button id="dl-btn" style="height: 34px; padding: 0 16px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-info); background: var(--color-background-info); font-size: 13px; color: var(--color-text-info); font-weight: 500; cursor: pointer;">Download</button>
+  </div>
+</div>
+
+<script>
+const content = `# Deliverables — MVP spec
+
+## Overview
+
+Scrap the current deliverables implementation entirely and rebuild from scratch. The new model is flexible and material-agnostic — a deliverable is simply a named thing we're making, with a quantity, optional dimensions, and a list of materials composed freely from the shop's material inventory.
+
+Templated material sets are out of scope for this phase and should be stubbed in the UI only (visible but disabled, badged as "phase 2").
+
+Two wireframe HTML files are attached for reference — use them as the visual target for the modal UI.
+
+---
+
+## Data model
+
+### Deliverable
+
+\`\`\`
+id
+project_id
+tenant_id
+name                  string        — e.g. "ACM sign — front entrance"
+quantity              int           — how many of this deliverable we're making
+width_mm              float | null  — optional
+height_mm             float | null  — optional
+dimension_source      enum          — 'custom' | 'survey'
+survey_photo_id       uuid | null   — FK to survey photo if source = survey
+survey_dimension_id   uuid | null   — FK to specific dimension on that photo
+created_at
+updated_at
+\`\`\`
+
+### DeliverableMaterial
+
+\`\`\`
+id
+deliverable_id        FK → Deliverable
+material_id           FK → Material (shop inventory)
+tenant_id
+unit                  string        — e.g. 'sheets', 'lin. metres', 'sqm'
+quantity              float         — auto-calculated or manually overridden
+is_auto_calculated    boolean       — true if system calculated, false if manually set
+is_printable_media    boolean       — flags this material row for the batch print tool
+created_at
+updated_at
+\`\`\`
+
+### Material (existing — confirm fields)
+
+Should have at minimum:
+- \`id\`
+- \`name\`
+- \`unit_of_measure\`  — 'sheet' | 'linear_metre' | 'sqm' | etc.
+- \`sheet_width_mm\`   — for sheet materials
+- \`sheet_height_mm\`  — for sheet materials
+- \`roll_width_mm\`    — for roll materials
+- \`is_sheet\`         boolean
+- \`is_roll\`          boolean
+
+---
+
+## Quantity auto-calculation rules
+
+Triggered when dimensions are set and a material is added or changed.
+
+### Sheet materials (ACM, foam board, etc.)
+
+\`\`\`
+sign_area = width_mm × height_mm
+sheet_area = material.sheet_width_mm × material.sheet_height_mm
+ratio = sign_area / sheet_area
+
+if ratio <= 0.5  → quantity = 0.5
+if ratio > 0.5   → quantity = 1.0
+— repeat in increments of 0.5 rounding up
+\`\`\`
+
+Multiply final quantity by \`deliverable.quantity\` for total sheets needed.
+
+### Roll/linear materials (vinyl, laminate)
+
+\`\`\`
+base_length = height_mm
+if material.is_printable_media:
+    base_length += (bleed_all_sides_mm × 2)   — from admin settings
+base_length += (lead_bleed_mm + tail_bleed_mm) — from admin settings
+quantity_metres = base_length / 1000
+\`\`\`
+
+Round up to nearest 0.5m for stock vinyl. Round up to nearest 1m for buy-in materials. (For MVP, manual override covers this — add a \`is_buy_in\` flag to Material if not already present.)
+
+Multiply final quantity by \`deliverable.quantity\`.
+
+---
+
+## Admin settings
+
+Add the following to the existing admin/settings area:
+
+| Setting key | Label | Default |
+|---|---|---|
+| \`print_lead_bleed_mm\` | Print lead (mm) | 50 |
+| \`print_tail_bleed_mm\` | Print tail (mm) | 50 |
+| \`print_side_bleed_mm\` | Print bleed — all sides (mm) | 10 |
+
+These are global per tenant and feed into the auto-calculation above.
+
+---
+
+## UI — Edit Deliverable modal
+
+### Trigger
+
+Existing "edit deliverable" trigger on the project/shop floor view. Modal replaces current implementation.
+
+### Layout
+
+Refer to attached wireframe HTML files.
+
+**Fields in order:**
+
+1. **Name / description** — text input, required
+2. **Quantity** — number input, min 1, required, default 1
+3. **Dimensions section**
+   - Tab switcher: \`Custom\` | \`From survey photo\`
+   - Custom: two number inputs — Width (mm) and Height (mm)
+   - From survey photo: see below
+4. **Materials section**
+   - Column headers: Material / Unit / Qty
+   - Repeating material rows (see below)
+   - \`+ add material\` button — dashed border
+   - \`+ load template\` button — visible but disabled, badged "phase 2"
+5. **Footer** — Cancel / Save deliverable
+
+### Dimensions — survey photo picker
+
+When "From survey photo" tab is active:
+
+1. Show photo thumbnail grid — photos from the current project's survey
+2. User selects a photo — highlights with blue border and checkmark
+3. Below the grid, show a list of dimensions tagged to that photo — each row shows the dimension value (e.g. \`600 × 900 mm\`) and a label/note if present, with a radio selector
+4. User selects a dimension — width and height populate in green read-only fields below the list
+5. Hint text: "Dimensions are read from the survey. Switch to custom to override."
+
+If no survey photos exist on the project, show an empty state: "No survey photos on this project yet."
+
+### Material rows
+
+Each row contains:
+- **Material selector** — searchable dropdown from shop material inventory
+- **Unit selector** — pre-populated from the selected material's \`unit_of_measure\`, but editable
+- **Quantity field** — auto-calculated on material/dimension change; shows \`auto\` badge when system-calculated; user can type to override (clears auto badge, sets \`is_auto_calculated = false\`)
+- **Delete button** — removes the row
+
+Below each material row, show contextual notes:
+- Sheet material: \`Rounds to nearest half or full sheet\`
+- Roll/linear material: \`Includes {lead}mm lead + {tail}mm tail bleed\`
+- If \`is_printable_media\` is checked: \`{side_bleed}mm bleed all sides applied\`
+
+Below the quantity note, show the **printable media checkbox**:
+\`\`\`
+[ ] Printable media
+\`\`\`
+When checked, re-runs the quantity calculation with side bleed applied.
+
+---
+
+## Batch print tool — spec (build after MVP modal)
+
+A separate view/tool, accessible from the production area.
+
+**Purpose:** scan all jobs currently in production, find deliverable materials flagged as \`is_printable_media\`, group by material type, and present a selectable list so the print operator can choose which jobs to batch together and feed into the vinyl calculator.
+
+**Behaviour:**
+- Filter: only jobs with status = \`in_production\`
+- Group rows by \`material_id\` (i.e. by the actual media — cast vinyl 1050mm, calendered vinyl 1370mm, etc.)
+- Each row shows: job name, deliverable name, dimensions, calculated quantity, material
+- Checkboxes on each row — user selects which jobs to include
+- "Send to vinyl calculator" button feeds selected rows into the existing vinyl layout/nesting tool
+
+**Note:** jobs already printed should be excludable — either by an \`is_printed\` flag on \`DeliverableMaterial\`, or by the user deselecting them manually. For MVP, manual deselection is fine.
+
+---
+
+## Out of scope (phase 2)
+
+- Deliverable templates / saved material recipes
+- Auto-suggest template on deliverable creation
+- Vinyl calculator integration at the individual deliverable level
+`;
+
+document.getElementById('dl-btn').addEventListener('click', function() {
+  const blob = new Blob([content], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'deliverables-spec.md';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>

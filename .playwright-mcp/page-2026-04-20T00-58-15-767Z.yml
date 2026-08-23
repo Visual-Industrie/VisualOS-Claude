@@ -1,0 +1,51 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - button [ref=e7] [cursor=pointer]
+        - paragraph [ref=e9]: VisualOS
+    - navigation [ref=e10]:
+      - link "Login with Google" [ref=e11] [cursor=pointer]:
+        - /url: https://vis.vil.nz/auth/google
+        - generic [ref=e12]:
+          - img [ref=e14]
+          - generic [ref=e16]: Login with Google
+    - main [ref=e17]:
+      - generic [ref=e18]:
+        - heading "Contacts" [level=1] [ref=e19]
+        - generic [ref=e20]:
+          - button "Sync from Xero" [ref=e21] [cursor=pointer]:
+            - generic [ref=e22]:
+              - img [ref=e24]
+              - generic [ref=e27]: Sync from Xero
+          - button "New Contact" [ref=e28] [cursor=pointer]:
+            - generic [ref=e29]:
+              - img [ref=e31]
+              - generic [ref=e32]: New Contact
+      - generic [ref=e33]:
+        - generic [ref=e35]:
+          - img [ref=e37]
+          - textbox "Search by name or email..." [ref=e40]
+        - generic [ref=e42]:
+          - textbox "All types" [ref=e43] [cursor=pointer]
+          - generic:
+            - img
+      - paragraph [ref=e44]: 0 contacts
+      - table [ref=e45] [cursor=pointer]:
+        - rowgroup [ref=e46]:
+          - row "Name Email Phone Type Projects" [ref=e47]:
+            - columnheader "Name" [ref=e48]
+            - columnheader "Email" [ref=e49]
+            - columnheader "Phone" [ref=e50]
+            - columnheader "Type" [ref=e51]
+            - columnheader "Projects" [ref=e52]
+        - rowgroup [ref=e53]:
+          - row "No contacts found" [ref=e54]:
+            - cell "No contacts found" [ref=e55]:
+              - paragraph [ref=e56]: No contacts found
+  - alert [ref=e59]:
+    - generic [ref=e60]:
+      - generic [ref=e61]: Error
+      - generic [ref=e62]: Failed to load contacts
+    - button [ref=e63] [cursor=pointer]:
+      - img [ref=e64]

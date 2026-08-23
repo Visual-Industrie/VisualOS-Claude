@@ -1,0 +1,12 @@
+[     255ms] [LOG] Studio version 0.511.0 @ http://localhost:5556/assets/index.js:0
+[     425ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5556/inter-latin-400-normal.27ae72da.woff2:0
+[     431ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5556/inter-all-400-normal.4c1f8a0d.woff:0
+[     459ms] [TIMEEND] Bootstrap Duration: 203.284912109375 ms @ http://localhost:5556/assets/index.js:0
+[     478ms] [WARNING] sidebarData.data is not observable @ http://localhost:5556/assets/index.js:0
+[     488ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5556/inter-latin-600-normal.87d718a2.woff2:0
+[     489ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5556/jetbrains-mono-latin-400-normal.80a5dc9e.woff2:0
+[     502ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5556/inter-all-600-normal.d0a7c8a9.woff:0
+[     505ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5556/jetbrains-mono-all-400-normal.f86807b7.woff:0
+[     798ms] [LOG] Running query:  {modelName: Contact, operation: findMany, args: Object} @ http://localhost:5556/assets/index.js:0
+[   61050ms] [LOG] Running query:  {modelName: Contact, operation: findMany, args: Object} @ http://localhost:5556/assets/index.js:0
+[   73676ms] [LOG] Running query:  {modelName: Contact, operation: findMany, args: Object} @ http://localhost:5556/assets/index.js:0

@@ -1,0 +1,136 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.overlay { min-height: 700px; background: rgba(0,0,0,0.45); display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; border-radius: var(--border-radius-lg); }
+.modal { background: var(--color-background-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); width: 100%; max-width: 560px; overflow: hidden; }
+.modal-header { padding: 1rem 1.25rem; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h2 { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+.close-btn { width: 28px; height: 28px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: 16px; }
+.modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.input-mock { height: 36px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 0 10px; display: flex; align-items: center; font-size: 14px; color: var(--color-text-tertiary); background: var(--color-background-primary); }
+.input-mock.filled { color: var(--color-text-primary); }
+.select-mock { height: 36px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 0 10px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: var(--color-text-tertiary); background: var(--color-background-secondary); }
+.select-mock.filled { color: var(--color-text-primary); background: var(--color-background-primary); }
+.chevron { font-size: 10px; color: var(--color-text-tertiary); }
+.section-label { font-size: 13px; font-weight: 500; color: var(--color-text-primary); padding-bottom: 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.dim-options { display: flex; gap: 8px; margin-bottom: 10px; }
+.dim-tab { height: 30px; padding: 0 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); font-size: 12px; cursor: pointer; display: flex; align-items: center; }
+.dim-tab.active { background: var(--color-background-info); border-color: var(--color-border-info); color: var(--color-text-info); font-weight: 500; }
+.dim-tab.inactive { background: transparent; color: var(--color-text-secondary); }
+.material-row { display: grid; grid-template-columns: 1fr 90px 60px 28px; gap: 8px; align-items: center; }
+.material-row + .material-row { margin-top: 8px; }
+.printable-badge { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--color-text-secondary); }
+.checkbox-mock { width: 14px; height: 14px; border: 0.5px solid var(--color-border-secondary); border-radius: 3px; background: var(--color-background-secondary); flex-shrink: 0; }
+.checkbox-mock.checked { background: var(--color-background-info); border-color: var(--color-border-info); display: flex; align-items: center; justify-content: center; }
+.check-mark { color: var(--color-text-info); font-size: 10px; }
+.delete-btn { width: 28px; height: 28px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: transparent; display: flex; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 14px; cursor: pointer; }
+.add-material-btn { height: 32px; border: 0.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; }
+.template-btn { height: 32px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); font-size: 12px; color: var(--color-text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; opacity: 0.6; }
+.phase-badge { font-size: 10px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 2px 6px; color: var(--color-text-tertiary); margin-left: 6px; }
+.col-headers { display: grid; grid-template-columns: 1fr 90px 60px 28px; gap: 8px; margin-bottom: 6px; }
+.col-header { font-size: 11px; color: var(--color-text-tertiary); }
+.modal-footer { padding: 1rem 1.25rem; border-top: 0.5px solid var(--color-border-tertiary); display: flex; justify-content: flex-end; gap: 8px; }
+.btn-secondary { height: 34px; padding: 0 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
+.btn-primary { height: 34px; padding: 0 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-info); background: var(--color-background-info); font-size: 13px; color: var(--color-text-info); font-weight: 500; cursor: pointer; }
+.qty-note { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
+.calculated-tag { font-size: 10px; background: var(--color-background-success); border-radius: var(--border-radius-md); padding: 1px 5px; color: var(--color-text-success); margin-left: 4px; }
+</style>
+
+<div class="overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit deliverable</h2>
+      <div class="close-btn">✕</div>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="field-row">
+        <div class="field-group">
+          <label>Name / description</label>
+          <div class="input-mock filled">ACM sign — front entrance</div>
+        </div>
+        <div class="field-group">
+          <label>Quantity</label>
+          <div class="input-mock filled">3</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="section-label">Dimensions</div>
+        <div class="dim-options">
+          <div class="dim-tab active">Custom</div>
+          <div class="dim-tab inactive">From survey photo</div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Width (mm)</label>
+            <div class="input-mock filled">600</div>
+          </div>
+          <div class="field-group">
+            <label>Height (mm)</label>
+            <div class="input-mock filled">900</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 0.5px solid var(--color-border-tertiary);">
+          <span class="section-label" style="border: none; padding: 0;">Materials</span>
+          <div class="template-btn" style="width: auto; padding: 0 10px;">
+            + load template <span class="phase-badge">phase 2</span>
+          </div>
+        </div>
+
+        <div class="col-headers" style="margin-top: 8px;">
+          <span class="col-header">Material</span>
+          <span class="col-header">Unit</span>
+          <span class="col-header">Qty</span>
+          <span class="col-header"></span>
+        </div>
+
+        <div class="material-row">
+          <div class="select-mock filled">ACM sheet (2440×1220) <span class="chevron">▾</span></div>
+          <div class="select-mock filled">sheets <span class="chevron">▾</span></div>
+          <div class="input-mock filled" style="position: relative;">1 <span class="calculated-tag">auto</span></div>
+          <div class="delete-btn">✕</div>
+        </div>
+        <div style="margin: 2px 0 8px 0;" class="qty-note" style="grid-column: 1/-1;">Rounds up to nearest half-sheet or full sheet</div>
+
+        <div class="material-row">
+          <div class="select-mock filled">cast vinyl (1050mm roll) <span class="chevron">▾</span></div>
+          <div class="select-mock filled">lin. metres <span class="chevron">▾</span></div>
+          <div class="input-mock filled">1.1</div>
+          <div class="delete-btn">✕</div>
+        </div>
+        <div style="margin: 2px 0 8px 0;" class="qty-note">Includes 50mm lead + tail bleed</div>
+
+        <div class="material-row">
+          <div class="select-mock filled">gloss laminate (1050mm) <span class="chevron">▾</span></div>
+          <div class="select-mock filled">lin. metres <span class="chevron">▾</span></div>
+          <div class="input-mock filled">1.1</div>
+          <div class="delete-btn">✕</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0;">
+          <div class="printable-badge">
+            <div class="checkbox-mock checked"><span class="check-mark">✓</span></div>
+            <span>printable media</span>
+          </div>
+          <span class="qty-note">+ 10mm bleed all sides applied</span>
+        </div>
+
+        <div class="add-material-btn">+ add material</div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <div class="btn-secondary">Cancel</div>
+      <div class="btn-primary">Save deliverable</div>
+    </div>
+  </div>
+</div>
