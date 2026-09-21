@@ -375,6 +375,34 @@ Cleanup left behind by roles & permissions (#39). `User.isAdmin` is superseded b
 
 ---
 
+### 41. Add `setAppId` to the Google Drive Pickers
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `cleanup`, `google-drive`, `oauth`, `tech-debt`
+
+Neither picker component calls `PickerBuilder.setAppId()`, which Google's web-picker guide lists as required — it's the GCP **project number**, and it's what associates a picked file with our app under the `drive.file` scope.
+
+It works today only because we also request the **restricted** `drive.readonly` scope (`projects-backend/src/index.ts:148`), which covers reads regardless of app association. That's leaning on a restricted scope to paper over a missing `setAppId`. Google has been steadily pushing apps toward `drive.file`-only; if `drive.readonly` is ever tightened or trimmed from our consent screen, both pickers break.
+
+**Context:** raised off the back of the September 2026 Google Picker security email (enforcement November 16, 2026). That enforcement itself **does not apply to us** — `prompt=consent` + `trigger_onepick=true` are for the OnePick flow used by *native desktop/mobile* apps. VisualOS is a plain browser SPA (no Capacitor/Cordova/Electron/Tauri, no PWA manifest, no embedded webview) using the supported `gapi.load('picker')` + `PickerBuilder().setOAuthToken()` web path, and our OAuth already sends `prompt=consent` (`index.ts:163`). No deadline work required — this item is the optional hardening only.
+
+**Steps:**
+1. Get the GCP project **number** (Cloud Console → project settings — numeric, not the project ID)
+2. Expose it to the frontend as `VITE_GOOGLE_APP_ID` (`.env.development.local`, `.env.production`, GH Actions secret on the frontend repo)
+3. Add `.setAppId(import.meta.env.VITE_GOOGLE_APP_ID)` to the `PickerBuilder` chain in `DrivePickerButton.tsx` and `DriveFilePickerButton.tsx`
+4. Verify folder linking, design file picking, and Drive uploads still work
+5. Once confirmed, consider whether `drive.readonly` can be dropped from `googleScopes` (`index.ts:148`) and `STUDIO_SCOPES` (`authRoutes.ts:89`) — dropping a restricted scope simplifies OAuth verification. Re-consent required if so.
+
+**Acceptance Criteria:**
+- [ ] `VITE_GOOGLE_APP_ID` wired through dev, prod, and CI
+- [ ] `setAppId` on both picker components
+- [ ] Folder picker, file picker, and Drive upload verified end to end
+- [ ] `ReleasesPanel.tsx` updated
+
+**Notes:** step 5 is a separate decision — don't drop `drive.readonly` in the same PR as `setAppId`.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -401,6 +429,7 @@ Cleanup left behind by roles & permissions (#39). `User.isAdmin` is superseded b
 6. Transactional Email Provider (#34) — future
 7. Email / Calendar Provider Abstraction (#35) — future
 8. File Storage Provider Abstraction (#36) — future
+9. Add `setAppId` to the Drive Pickers (#41) — tech debt
 
 ---
 
@@ -417,4 +446,6 @@ Cleanup left behind by roles & permissions (#39). `User.isAdmin` is superseded b
 
 ---
 
-**Last Updated:** June 24, 2026 — Shipped Xero quote/invoice creation, other expenses, live timesheet timer, multi-staff financial rows, stage-gated tasks, PO/Ref field, mileage tracking, enquiry form, overview page, status history. Added #38 (standard T&Cs on Xero quotes).
+**Last Updated:** September 21, 2026 — Added #41 (`setAppId` on the Drive pickers), raised off the Google Picker security email. Confirmed the November 16, 2026 Picker enforcement does not apply to VisualOS (native desktop/mobile apps only).
+
+June 24, 2026 — Shipped Xero quote/invoice creation, other expenses, live timesheet timer, multi-staff financial rows, stage-gated tasks, PO/Ref field, mileage tracking, enquiry form, overview page, status history. Added #38 (standard T&Cs on Xero quotes).
