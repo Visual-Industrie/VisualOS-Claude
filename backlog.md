@@ -86,17 +86,11 @@ Currently some state (e.g. task count badge in sidebar) is fetched independently
 ---
 
 ### 12. Vitest Setup (Backend)
-**Status:** 📋 Planned
+**Status:** ✅ Shipped
 **Priority:** Low
 **Labels:** `testing`, `infrastructure`
 
-Unit test infrastructure for the backend is not yet configured. `contactRoutes.test.ts` has been written but can't run until vitest is installed and configured.
-
-**Steps:**
-- `npm install --save-dev vitest`
-- Add `"test": "vitest"` to `package.json` scripts
-- Run existing `contactRoutes.test.ts` and fix any issues
-
+Vitest is installed and configured (`vitest.config.ts`, `@vitest/coverage-v8`). `npm test` runs `vitest run` across all `*.test.ts` files in `src/`, including `contactRoutes.test.ts`. As of October 2026 that's 41 files and 528 tests, all passing.
 ---
 
 ### 14. Remove `xeroContactName` from Project
@@ -422,7 +416,6 @@ It works today only because we also request the **restricted** `drive.readonly` 
 ### Low Priority / Cleanup
 1. Move Notes onto Project Details Tab (#37)
 2. Remove `User.isAdmin` (#40) — cleanup migration after #39
-2. Vitest Setup (Backend) (#12)
 3. Remove `xeroContactName` from Project (#14) — cleanup migration
 4. Business Intelligence Dashboard (#23)
 5. Materials Catalog (#6) — PARKED
