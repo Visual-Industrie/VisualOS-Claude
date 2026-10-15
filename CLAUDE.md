@@ -31,6 +31,11 @@ npm run dev             # Hot-reload dev server (tsx watch)
 npm run build           # Compile TypeScript to dist/
 npm start               # Run compiled app
 
+# Tests (Vitest — *.test.ts alongside source in src/)
+npm test                # Run the full suite once (vitest run)
+npx vitest              # Watch mode
+npx vitest run src/routes/contactRoutes.test.ts   # Single file
+
 # Database
 npx prisma generate     # Regenerate Prisma client after schema changes
 npx prisma migrate dev --name <name>   # Create + apply new migration
