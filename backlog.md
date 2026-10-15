@@ -67,11 +67,16 @@ This document tracks planned and in-progress features. Completed items live in `
 ## Backlog Items
 
 ### 11. Global App State with React Context
-**Status:** 📋 Planned
+**Status:** 🚧 In progress — foundation built (with #42)
 **Priority:** Medium
 **Labels:** `enhancement`, `architecture`, `ux`
 
 Currently some state (e.g. task count badge in sidebar) is fetched independently per component with polling. A shared React context would allow components to reactively share state without redundant API calls or polling.
+
+**Foundation (shipped with #42 SMS):**
+- `GET /api/events` — Server-Sent Events stream fed by an in-process event bus (`src/realtime/eventBus.ts`). Generic `{ type, payload }` envelope; each event carries an `audience` of permission keys and is filtered per user.
+- `RealtimeProvider` (`contexts/RealtimeContext.tsx`) owns the app's single `EventSource`; components subscribe with `useRealtimeEvent(type, handler)`.
+- `MessagingContext` is the first slice on top of it (SMS enabled flag + per-user unread badge). `PermissionsContext` (user) and `TaskContext` (task count) already exist — the remaining work is publishing task events so the task badge updates live too.
 
 **Initial candidates for global state:**
 - Incomplete task count (so ticking complete in MyTasks instantly updates sidebar badge)
@@ -403,6 +408,23 @@ It works today only because we also request the **restricted** `drive.readonly` 
 
 ---
 
+### 42. Two-Way SMS Messaging + Live Notifications (Prototype)
+**Status:** 🚧 Built — gated off (`SystemSettings.smsEnabled`) until live-tested on the gateway phone
+**Priority:** Medium
+**Labels:** `feature`, `sms`, `notifications`, `customer-facing`, `prototype`
+
+Full spec: `sms-messaging-spec.md`. sms-gate.app gateway (Android phone + private server on the NAS), HMAC-signed webhook, threads keyed on E.164 number, two-day reply attribution, per-user read state vs team-wide "actioned", SMS inbox at `/messages`, project Messages tab, SSE live toasts. Builds the #11 foundation.
+
+**Still to do before switching on:**
+- Set up the gateway phone + private server; set `SMS_GATEWAY_URL`, `SMS_GATEWAY_USERNAME`, `SMS_GATEWAY_PASSWORD`, `SMS_WEBHOOK_SECRET` on the NAS
+- Register the webhook (`sms:received`, `sms:sent`, `sms:delivered`, `sms:failed`) pointing at `https://vis.vil.nz/api/sms/webhook` with the same signing key
+- Check the NAS reverse proxy doesn't buffer or time out `/api/events` (SSE)
+- Grant Messages / Send SMS to the test roles, flip the switch in Settings → Admin
+
+**Possible follow-ups:** "seen by" avatars from `SmsThreadRead`; a way to clear `optedOut` if a customer texts START.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -418,6 +440,7 @@ It works today only because we also request the **restricted** `drive.readonly` 
 7. Multi-Tenancy / Organisation Layer (#32)
 8. Admin Integration Settings Page (#33)
 9. Standard T&Cs on Xero Quotes (#38)
+10. Two-Way SMS — live test + switch on (#42)
 
 ### Low Priority / Cleanup
 1. Move Notes onto Project Details Tab (#37)
