@@ -99,6 +99,8 @@ yarn storybook       # Component explorer at port 6006
   - `quoteRequestRoutes` — public (no auth) `POST /api/quote-requests`; origin-locked to `visualindustrie.co.nz`; rate-limited 10/IP/hour; fuzzy contact matching; creates Project + Note + Task + `QuoteRequest` audit record; sends internal notification email; mounted before auth routes
   - `invoiceRoutes` — per-project Xero invoice + quote create/link/unlink/refresh (`/api/projects/:id/invoice`, `/invoices/link`, `/invoices/:invoiceId/refresh`, `/quote`, etc); captures `ProjectInvoice.xeroInvoiceDate` from the Xero invoice `Date` on create/link/refresh
   - `roleRoutes` — `GET /api/permissions` (any authed), roles CRUD, `GET /api/roles/users` (login accounts), `PATCH /api/users/:id/role`. Invalid permission keys are stripped on write, not rejected, so a stale client can't wipe keys it doesn't know about
+  - `smsRoutes` — two-way SMS (#42), mounted at `/api/sms`. `POST /webhook` is the only unauthenticated SMS route (sms-gate.app, HMAC-SHA256 of `rawBody + X-Timestamp` with `SMS_WEBHOOK_SECRET`, always logs inbound even while switched off). Inbox: `GET /threads?filter=open|unassigned|actioned|archived|spam`, `GET /threads/:id`, `GET /unread-count` (`page.messages`); `POST /threads/:id/read`; `POST /threads/:id/messages` (reply, `action.sms.send`); `PATCH /threads/:id` (status/assign customer); `PATCH /messages/:id` (move to project). Project tab: `GET`/`POST /projects/:projectId` (`project.tab.messages.view`; POST also `action.sms.send`). Everything except the webhook, read-marking and the badge is 403 while `SystemSettings.smsEnabled` is off
+  - `eventsRoutes` — `GET /api/events`, the Server-Sent Events stream (session-authed). Fans out the in-process event bus (`src/realtime/eventBus.ts`), filtering each event by its `audience` permission keys; 25s heartbeat; sends `X-Accel-Buffering: no` for the NAS nginx proxy
   - `financialOverviewRoutes` — `GET /api/financial-overview?month=YYYY-MM` (`page.financial-overview`; invoiced contribution vs monthly budget: coverage, pace, per-invoice drill-down, gaps report); `POST /api/admin/backfill-invoice-dates` (one-off — fills `xeroInvoiceDate`/`xeroTotal` on existing invoices from Xero; **remove after running in prod**). All money maths lives in `utils/financialOverview.ts`
 - **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
@@ -112,6 +114,10 @@ yarn storybook       # Component explorer at port 6006
 - **`utils/roleGuards.ts`**: pure lockout rules for role CRUD and assignment (no self-role-change, no removing your own Roles access, last admin protected, built-in roles undeletable, default role undeletable). Returns a message or null; the route turns it into a 409.
 - **`utils/sanitiseStaff.ts`**: strips `costPricePerHour` from staff responses unless the caller holds `action.staff.view-cost-rates`. `GET /api/staff` stays open to all authed users (task pickers, Shop Floor, schedule need it), so the field is removed per-caller instead.
 - **`utils/timeEntryAccess.ts`**: time entry ownership — edits/deletes are limited to your own entries unless you hold `action.timesheet.edit-others`.
+- **`utils/phone.ts`**: `normalisePhone()` (anything → E.164, NZ default) and `composeXeroPhone()` (Xero's country/area/number parts). SMS threads are keyed on the E.164 form.
+- **`utils/smsRules.ts`**: pure SMS rules — `attributeInbound()` (the two-day rule; `ATTRIBUTION_WINDOW_MS`), `isStopMessage`, `resolveAutoLink` (link only on exactly one matching organisation), `isUnreadFor`, `statusAfterInbound`, `verifyGatewaySignature`, `parseGatewayEvent`, `shouldApplyStatus`.
+- **`utils/sendSms.ts`**: `sendSms(to, body)` behind an `SmsProvider` interface (sms-gate.app today; `setSmsProvider()` swaps it). **`services/smsService.ts`** holds the DB side (`handleInbound`, `handleStatus`, `sendOnThread`, `sendFromProject`) and takes the Prisma client as an argument so it's tested with a fake. Every outbound is prefixed with the business name (`SMS_BUSINESS_NAME`, default "Visual Industrie") unless it already mentions it; a failed gateway send is stored as a `failed` message rather than lost.
+- **`realtime/eventBus.ts`**: in-process pub/sub behind `/api/events`. `publish({ type, payload, audience })` — `audience` is permission keys (any one grants). Single-process only.
 - **`utils/financialToggles.ts`**: `financialTogglePatch(body)` — shared partial-update builder for the persisted Financial tab toggles (`financialUseActual`/`financialChargeable`), used by the Task / ProjectMaterial / ProjectExpense PATCH routes.
 - **`prisma/schema.prisma`**: Source of truth for data models.
 
@@ -138,6 +144,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `ShopFloor.page.tsx` — tablet-optimised production floor view at `/shopfloor`; no AppShell/nav; `StaffPickerOverlay` on first visit (selection persisted to localStorage); shows active, upcoming, and completed tasks for the selected staff member; start/stop/complete/undo actions with optimistic updates; task type + project filter chips; auto-refresh every 60s; `UnavailableScreen` if backend unreachable on initial load; design preview modal (Google Drive iframe, full-screen)
   - `MyTimesheet.page.tsx` — staff time entry view at `/my-timesheet`; entries grouped by day with totals; date range filter (DatePickerInput); add/edit/delete entries; manual vs timer badge
   - `AdminTimesheets.page.tsx` — admin time entry view at `/timesheets`; all staff entries in a table; filters for date range and staff member; totals summary per staff member at bottom
+  - `Messages.page.tsx` — SMS inbox at `/messages` (`page.messages`, hidden while SMS is off); filter + selected thread live in the query string (`?filter=`, `?thread=`); conversation pane is `components/Messages/ThreadView`
   - `FinancialOverview.page.tsx` — page at `/financial-overview`, gated on `page.financial-overview` (sidebar link and route both); month picker (Auckland default) + back/forward arrows; header stat row; two `RatioGauge`s (Coverage, Pace — Pace hidden for future months); per-invoice drill-down; gaps panel (invoices missing a total with one-click refresh, and expectsInvoice-stage projects with no invoice). Reads `GET /api/financial-overview?month=YYYY-MM`
 - **`components/`**: Reusable UI:
   - `Tasks/TaskList`, `Tasks/TaskModal` (`showProjectPicker` prop shows project dropdown — used for both add and edit on My Tasks page; edit pre-fills current project), `Tasks/TaskItem` (shows task type badge)
@@ -147,6 +154,8 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
   - `Project/Tabs/ScheduleTab` — per-project schedule using React Big Calendar; create/edit/delete events; syncs to Google Calendar; GCal overlay (deduped by `googleEventId`); colour key; upcoming + unscheduled lists
   - `Project/Tabs/CompletionPhotosTab` — completion photo grid + lightbox; same 3-phase camera/upload modal as SurveyTab; multi-file upload supported
   - `Project/Tabs/TimesheetTab` — all time entries for the project across all staff; add/edit/delete manual entries; task picker pre-filtered to project tasks; total duration in header
+  - `Project/Tabs/MessagesTab` — the job's SMS conversations + "New text" to anyone on the job; replies sent here are attributed to the job. The Details tab's "Text customer" button (stage flag `canNotifySms`) navigates here with a draft in router state
+  - `Messages/` — `MessageBubble` (status badge, Move menu), `ReplyBox` (disabled rules from `utils/sms.ts`), `ThreadView`, `AssignCustomerModal`, `showSmsToast`
   - `Project/Tabs/CalendarTab`, `DeliverablesTab`
   - `Project/Tabs/DetailsTab` — description editor, status combobox (taxonomy-driven), Save button, Notify Customer button (enabled/disabled by `canNotifyCustomer` flag on current stage), Drive folder picker, project contacts
   - `Project/DriveFolderPicker` — Drive folder picker + auto-create folder hierarchy
@@ -169,6 +178,8 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
 - **`types/timesheet.ts`**: `ITimesheetEntry`, `entryDurationMinutes()`, `formatDuration()`.
 - **`types/taxonomy.ts`**: `ITaxonomyItem` interface + `taxonomyLabel(item)` helper (returns `label ?? name`).
 - **`contexts/PermissionsContext.tsx`**: `usePermissions()` → `{ can, canAny, permissions, role, user, isLoggedIn, isLoading, refresh }`. Fed from `/auth/status`, which returns the **fully resolved** key list (admins get every key expanded), so nothing special-cases admins. Supersedes `useAuthStatus` as the source of the current user. In dev, `can()` warns about a key the server doesn't know.
+- **`contexts/RealtimeContext.tsx`**: `RealtimeProvider` owns the app's single `EventSource` to `/api/events`; subscribe with `useRealtimeEvent(type, handler)`. Never open a second stream.
+- **`contexts/MessagingContext.tsx`**: `useMessaging()` → `{ enabled, unreadCount, refreshUnread, markThreadRead }`; raises the sticky new-SMS toast. First slice of global state on top of `RealtimeProvider` (#11).
 - **`components/Permissions/`**: `<Can permission=... anyOf=... fallback=...>` for controls, `<RequirePermission permission=... what=...>` for route elements, `<NoAccessScreen>` for the denied case (a screen, never a redirect — redirects make deep links look broken and loop when home is also unpermitted).
 - **`types/permissions.ts`**: `PermissionKey` string-literal union mirroring the backend registry — keep the two in sync when adding a key.
 - **`utils/permissionTabs.ts`**: `visibleTabs()` / `resolveActiveTab()` — filter a tab config array by permission and fall back to the first permitted tab (null when none, which the page turns into `<NoAccessScreen>`).
@@ -182,7 +193,7 @@ State management is local `useState`/`useEffect` per component, except for `Perm
 
 ### Data Models (Prisma)
 
-Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`.
+Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `DesignFile`, `SystemSettings`, `EmailTemplate`, `ProjectContact`, `DesignApprovalToken`, `DesignApproval`, `PortalAuditLog`, `FeatureRequest`, `SiteSurvey`, `SurveyPhoto`, `CompletionPhoto`, `Deliverable`, `Material`, `BrandAssets`, `TaxonomyItem`, `StaffMember`, `SmsThread`, `SmsMessage`, `SmsThreadRead`.
 
 - `User` has `roleId` → `Role`. `isAdmin` is legacy: nothing reads it, it's mirrored from `role.isSystemAdmin` on assignment, and it's dropped in backlog #40
 - `Role` — named bundle of permission keys (`permissions` JSON `string[]`). `isSystemAdmin` = implicit grant of everything; `isProtected` = seeded, can't be deleted or have `isSystemAdmin` toggled (Admin + Production Staff). Takes an `organisationId` FK when multi-tenancy (#32) lands
@@ -194,6 +205,7 @@ Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `
 - `Contact` has sub-relations: `ContactAddress`, `ContactPhone`, `ContactPerson`; `driveFolderId`/`driveFolderName` store the linked Brand Assets Drive folder
 - `DesignFile` tracks Google Drive files with version history and approval status (`pending_review`, `changes_requested`, `approved`); `approvalSentAt` and `sentByUserId` set when approval email is sent; `optionsCount Int @default(1)` — staff sets how many layout options exist (1–10); shown as a `NumberInput` on the design file card
 - `SystemSettings` — single-row singleton (`id=1`), stores `baseDriveFolderId`/`baseDriveFolderName` (top-level job folder), `templateDriveFileId`/`templateDriveFileName` (AI template file to copy on folder creation), `termsUrl` (T&Cs link shown in client portal approval flow), `defaultSalesAccountCode`/`defaultInvoiceDays`, and `financialOverviewStartDate` (cutoff — projects that reached their invoice-expecting stage before this NZ date are hidden from the Financial Overview gaps list; seeded to 2026-06-01; null = no cutoff; edited in Settings → Admin → Invoicing)
+- `SmsThread` — one per phone number (`phoneNumber` E.164 `@unique`); optional `contactId`/`displayName` (auto-linked) and `projectId` (follows the latest attributed message); `status` `open|handled|archived|spam` with `handledBy`/`handledAt` (team-wide "actioned"; a new inbound reopens it); `optedOut` (customer texted STOP — sends refused). `SmsMessage` — `direction`, `body`, `gatewayId @unique` (webhook dedupe), delivery `status` + `errorReason`, `sentByUserId`, per-message `projectId` (movable). `SmsThreadRead` — per-user `lastReadAt`; unread = `lastMessageAt > lastReadAt`. `SystemSettings.smsEnabled` is the master switch
 - `ProjectInvoice` — per-project Xero invoice link; `xeroTotal` (pre-tax) and `xeroInvoiceDate` (Xero invoice `Date`, the month-bucketing date for the Financial Overview); `ProjectMaterial` and `ProjectExpense` also carry the `financialUseActual`/`financialChargeable` toggle fields (see `Task`)
 - `EmailTemplate` — editable email templates keyed by slug (`approval_request`, `mfa_code`, `approval_confirmed`, `new_token`, `job_notification`, `design_approval_confirmation`); body supports shortcodes interpolated by `renderTemplate()`
 - `ProjectContact` — per-project contacts (name, email, isPrimary); used to send design approval emails
@@ -221,6 +233,7 @@ Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `
 | Google Picker API | Drive folder picker in project Details tab, Brand Assets tab, Settings page | Backend `/auth/drive-token` exchanges stored refresh token; `VITE_GOOGLE_API_KEY` (browser key) required |
 | Google Maps / Places API | Site address autocomplete in Survey tab | `@googlemaps/js-api-loader`, Places API (New) |
 | Xero Webhook | Real-time contact sync | HMAC-SHA256 verified, no session |
+| sms-gate.app | Two-way SMS via an Android gateway phone + private server on the NAS | Basic auth for sending; HMAC-SHA256 signed webhook (`/api/sms/webhook`) |
 
 ## Environment Variables
 
@@ -231,6 +244,10 @@ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 SHARED_INBOX_EMAIL, SHARED_INBOX_REFRESH_TOKEN
 XERO_CLIENT_ID, XERO_CLIENT_SECRET, XERO_WEBHOOK_KEY, XERO_TENANT_ID
 COOKIE_KEY, FRONTEND_URL, BACKEND_URL, CALLBACK_URL
+SMS_GATEWAY_URL          # e.g. https://sms.vil.nz/api/3rdparty/v1 (private server)
+SMS_GATEWAY_USERNAME, SMS_GATEWAY_PASSWORD   # shown in the gateway phone app
+SMS_WEBHOOK_SECRET       # webhook signing key, same value as set on the gateway
+SMS_BUSINESS_NAME        # optional, defaults to "Visual Industrie"
 ```
 
 **Frontend (`.env.development`):**
