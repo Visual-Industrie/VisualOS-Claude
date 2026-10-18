@@ -465,6 +465,25 @@ A customer-facing chatbot on the new website (beta.vil.nz) that answers question
 
 ---
 
+### 44. Stop Mounting `mileageRoutes` at Bare `/api`
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `tech-debt`, `routing`, `backend`
+
+`mileageRoutes` is mounted twice: at `/api/mileage` (correct) and at bare `/api`, only so `/api/projects/:projectId/mileage` works. The bare mount also exposes its catch-all paths across the whole `/api` namespace: `GET /api/`, `POST /api/`, `GET /api/all`, and **`PATCH`/`DELETE /api/:id`**. Any single-segment PATCH or DELETE under `/api` that a router mounted later would serve gets swallowed by mileage instead. It's the same class of bug as the `/api/events` SSE collision (fixed by moving the stream to `/api/realtime`). Nothing is broken today, but it's a trap for the next new route.
+
+**Fix:** move `GET /projects/:projectId/mileage` into its own router (or into `projectRoutes`) mounted at `/api/projects`, and drop `app.use('/api', mileageRoutes)` from `routes/mountRoutes.ts`.
+
+**Acceptance Criteria:**
+- [ ] `app.use('/api', mileageRoutes)` removed from `mountRoutes.ts`; the header list of bare-`/api` routers updated
+- [ ] `/api/projects/:projectId/mileage` still works (project Mileage tab)
+- [ ] `/api/mileage/*` unchanged
+- [ ] `mountRoutes.test.ts` asserts `GET /api/all` and `PATCH /api/<anything>` no longer reach mileage, and the project mileage path still does
+- [ ] `CLAUDE.md` bare-`/api` list updated
+- [ ] `ReleasesPanel.tsx` updated
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -494,6 +513,7 @@ A customer-facing chatbot on the new website (beta.vil.nz) that answers question
 7. Email / Calendar Provider Abstraction (#35) — future
 8. File Storage Provider Abstraction (#36) — future
 9. Add `setAppId` to the Drive Pickers (#41) — tech debt
+10. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
 
 ---
 
