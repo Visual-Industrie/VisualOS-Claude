@@ -4,6 +4,19 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — Knowledge Pack + Inbox FAQ Miner (#43, part 1)
+**Labels:** `feature`, `ai`, `gmail-api`, `settings`
+
+- **Knowledge pack.** New Settings → Chatbot tab. Entries are a question and an answer in markdown, grouped by the new `knowledge_category` taxonomy (8 seeded, editable in Lists). They can be published or unpublished and reordered, and "Preview pack" shows the assembled prompt with a token estimate. `KnowledgeEntry` model, `/api/knowledge`, `utils/knowledgePack.ts`.
+- **FAQ miner.** Reads studio@ through the shared-inbox token. A 12-month backfill (one month at a time), manual date ranges, and a weekly run on Monday at 06:00 Pacific/Auckland. Before any AI call: pre-filters skip newsletters, no-reply, staff mail and ignored senders; quotes and signatures are stripped; names, phones, emails and addresses are removed. Haiku runs through the Batch API with structured output to classify each thread, extract the question and compare it with the pack. `InboxScanRun` / `InboxThreadScan` mean a thread is never scanned twice. Usage is logged to `AiUsageLog`.
+- **Suggestions review.** Questions are ranked by how often they're asked, shown with our past replies, a suggested answer and links to the emails. Approve one as a new entry, merge it into an existing one, or dismiss it. The reviewer gets a task after a weekly scan finds something new.
+- **Permissions:** `settings.tab.chatbot.view/.edit`, `action.faq-miner.run`.
+- **First pack loaded:** 47 entries drafted from a year of studio@ sent mail, imported through a one-off admin endpoint (`POST /api/knowledge/admin/import`, to be removed).
+- The miner is switched off until `ANTHROPIC_API_KEY` is set. The website chatbot is still in the backlog.
+- Backend PRs #171, #172; frontend PRs #223, #224.
+
+---
+
 ### October 2026 — Live Invoice Status from the Xero Webhook (#45)
 **Labels:** `feature`, `xero`, `webhook`, `financial`, `realtime`, `fix`
 
