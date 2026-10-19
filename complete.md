@@ -4,6 +4,18 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — Live Invoice Status from the Xero Webhook (#45)
+**Labels:** `feature`, `xero`, `webhook`, `financial`, `realtime`, `fix`
+
+- **Xero INVOICE webhooks are now handled.** `POST /api/webhooks/xero` previously logged INVOICE events as "not yet handled", so invoice status only moved when someone pressed Sync Invoices. Now each event looks up the `ProjectInvoice` links by Xero id (case-insensitive), fetches that one invoice and writes status, number, pre-tax `xeroTotal`, `xeroTotalIncGst` and `xeroInvoiceDate` to **every** project it's linked to. Unlinked invoices and bills are skipped without an API call. A Xero 404, empty result or unknown status changes nothing; any other Xero error is logged, and one failing event doesn't stop the rest of the batch.
+- **One update, three callers** — `projectInvoiceUpdateFromXero()` (`utils/invoiceStatus.ts`) is shared by the webhook, the Sync Invoices button and the nightly sync, so all three keep the fields in step the same way (fields Xero didn't send are left out, not nulled). `services/xeroInvoiceSync.ts` holds `applyInvoiceWebhookEvent()` and `syncOpenInvoices()` (moved out of `POST /api/xero/sync-invoices`; behaviour unchanged).
+- **Nightly backstop** — 03:00 Pacific/Auckland sweep of every unpaid / unvoided invoice. Needed because the webhook acks Xero before processing (Xero wants < 5s), so Xero never retries a failed fetch.
+- **Live refresh** — `invoice.updated` `{ projectIds }` over the realtime stream. New `useInvoiceUpdates` hook (project-filtered, bursts coalesced): Home refetches the project list silently, the Financial tab swaps only its invoice list (in-progress rate/discount edits survive), Financial Overview refetches in place.
+- **Hardening** — the webhook signature check is now constant-time (`utils/xeroWebhook.ts`) instead of `!==`; `getBackgroundXeroClient()` (`xeroClient.ts`) replaces the contact branch's inline "first user with Xero tokens" lookup.
+- Backend PR #167, frontend PR #220.
+
+---
+
 ### August 2026 — Roles & Permissions (RBAC)
 **Labels:** `feature`, `security`, `admin`, `settings`, `refactor`
 

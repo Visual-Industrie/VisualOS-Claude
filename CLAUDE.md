@@ -74,12 +74,12 @@ yarn storybook       # Component explorer at port 6006
 - **`routes/mountRoutes.ts`**: the whole router mount table, in order (first match wins). Kept out of `index.ts` so `mountRoutes.test.ts` can drive the real table over HTTP. **Several routers share bare `/api`** — `calendarRoutes`, `designFileRoutes`, `taskRoutes`, `deliverableRoutes`, `mileageRoutes`, `financialOverviewRoutes`, `projectVelocityRoutes`, `roleRoutes` — so a new top-level `/api/<name>` path can be silently shadowed. Check the list in that file's header before picking a path, and add a mount-level test for it.
 - **`routes/`**: One file per domain:
   - `projectRoutes` — CRUD + Drive folder creation + DELETE (cascading)
-  - `contactRoutes` — Xero contact sync + webhook
+  - `contactRoutes` — Xero contact sync + the Xero webhook (`POST /api/webhooks/xero`): CONTACT events upsert the contact; INVOICE events go to `applyInvoiceWebhookEvent()` (see `services/xeroInvoiceSync.ts`)
   - `taskRoutes` — task CRUD; `PATCH /tasks/:id` accepts `projectId` to reassign or unlink a task from a project
   - `noteRoutes` — project notes
   - `designFileRoutes` — Drive-linked design files + approval send
   - `gmailRoutes` — Gmail thread list/view + search + label-thread
-  - `xeroRoutes` — Xero OAuth + project/contact sync
+  - `xeroRoutes` — Xero OAuth + project/contact sync; `POST /api/xero/sync-invoices` (Sync Invoices button, `action.invoice.sync-status`) calls `syncOpenInvoices()`
   - `authRoutes` — Google OAuth, session status, Drive token exchange
   - `settingsRoutes` — SystemSettings CRUD; reads gated on `settings.tab.admin.view` / `settings.tab.templates.view`, writes on the matching `.edit`
   - `userRoutes` — current user info
@@ -103,7 +103,8 @@ yarn storybook       # Component explorer at port 6006
   - `smsRoutes` — two-way SMS (#42), mounted at `/api/sms`. `POST /webhook` is the only unauthenticated SMS route (sms-gate.app, HMAC-SHA256 of `rawBody + X-Timestamp` with `SMS_WEBHOOK_SECRET`, always logs inbound even while switched off). Inbox: `GET /threads?filter=open|unassigned|actioned|archived|spam`, `GET /threads/:id`, `GET /unread-count` (`page.messages`); `POST /threads/:id/read`; `POST /threads/:id/messages` (reply, `action.sms.send`); `PATCH /threads/:id` (status/assign customer); `PATCH /messages/:id` (move to project). Project tab: `GET`/`POST /projects/:projectId` (`project.tab.messages.view`; POST also `action.sms.send`). `GET /gateway-health` (`page.messages`) — gateway health for the Messages page badge. Everything except the webhook, read-marking, the badge and gateway health is 403 while `SystemSettings.smsEnabled` is off. Every webhook call is logged to `SmsWebhookLog` (accepted/rejected + reason)
   - `eventsRoutes` — `GET /api/realtime`, the session-authed Server-Sent Events stream (**not** `/api/events` — that's the calendar overlay; the old clash 400'd the stream). Fans out the in-process event bus (`src/realtime/eventBus.ts`), filtering each event by its `audience` permission keys; 25s heartbeat; sends `X-Accel-Buffering: no` for the NAS nginx proxy
   - `financialOverviewRoutes` — `GET /api/financial-overview?month=YYYY-MM` (`page.financial-overview`; invoiced contribution vs monthly budget: coverage, pace, per-invoice drill-down, gaps report); `POST /api/admin/backfill-invoice-dates` (one-off — fills `xeroInvoiceDate`/`xeroTotal` on existing invoices from Xero; **remove after running in prod**). All money maths lives in `utils/financialOverview.ts`
-- **`routes/xeroClient.ts`**: Shared Xero token handling used across routes.
+- **`routes/xeroClient.ts`**: Shared Xero token handling used across routes. `getXeroClient(userId)` for a signed-in user; `getBackgroundXeroClient()` (first user with Xero tokens — single-tenant) for webhooks and scheduled jobs.
+- **`services/xeroInvoiceSync.ts`**: keeps `ProjectInvoice` in step with Xero (#45). `applyInvoiceWebhookEvent()` handles one INVOICE event: looks up links by Xero id (case-insensitive), skips unlinked invoices and bills **without** an API call, fetches the invoice and updates every linked project; a 404 / empty / unknown status is `missing` (nothing written). `syncOpenInvoices()` sweeps every non-PAID/VOIDED invoice in batches — used by Sync Invoices and a **nightly backstop cron at 03:00 Pacific/Auckland** (`index.ts`), which exists because the webhook acks Xero before processing, so Xero never retries a failed fetch. Both publish `invoice.updated` `{ projectIds }` (audience `page.home`, `project.tab.financial.view`, `page.financial-overview`). All three paths write the same fields via `projectInvoiceUpdateFromXero()` in `utils/invoiceStatus.ts` (status, number, `xeroTotal` pre-tax, `xeroTotalIncGst`, `xeroInvoiceDate`; fields Xero didn't send are left out, not nulled).
 - **`utils/ensureAuthenticated.ts`**: Auth middleware applied to all protected routes.
 - **`utils/sendEmail.ts`**: Gmail API email sending via `studio@vil.nz` shared inbox. RFC 2047 subject encoding, base64 MIME body, auto-labels sent messages with `VisualOS/JOB-{projectId}` (MFA code emails excluded).
 - **`utils/emailTemplates.ts`**: `renderTemplate(prisma, key, context)` — fetches `EmailTemplate` from DB and interpolates shortcodes. `TEMPLATE_SHORTCODES` registry defines available shortcodes per template key for the admin editor. Composite shortcodes (`[viewApproveButton]`, `[statusBadge]`) are built automatically from context.
@@ -131,7 +132,7 @@ Authentication is session-based (express-session + **connect-pg-simple** Postgre
 
 **Drive token endpoint:** `GET /auth/drive-token` exchanges the stored `google_refresh_token` for a short-lived access token using the googleapis `OAuth2Client`. Frontend calls this via `getDriveAccessToken()` utility (`src/utils/driveToken.ts`) before opening the Google Picker — silently refreshes without user interaction.
 
-The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verification — no session auth.
+The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verification (`verifyXeroSignature()` in `utils/xeroWebhook.ts`, constant-time) — no session auth. It responds 200 before processing (Xero wants < 5s), so failures aren't retried by Xero; the nightly invoice sync is the backstop.
 
 ### Frontend (`src/`)
 
@@ -190,6 +191,7 @@ The Xero webhook endpoint (`POST /api/webhooks/xero`) uses HMAC-SHA256 verificat
 - **`utils/notifications.ts`**: Wrapper around Mantine notifications for toast messages.
 - **`utils/driveToken.ts`**: `getDriveAccessToken()` — calls `GET /auth/drive-token` to exchange the stored refresh token for a short-lived Drive access token.
 - **`hooks/useAuthStatus.ts`**: Checks login state on app load.
+- **`hooks/useInvoiceUpdates.ts`**: `useInvoiceUpdates(onUpdate, projectId?)` — runs on the `invoice.updated` realtime event, filtered to `projectId` when given, bursts coalesced (1s). Used by Home (silent project-list refetch), the Financial tab (replaces only the invoice list, so in-progress rate/discount edits survive) and Financial Overview (in-place refetch, no spinner).
 
 State management is local `useState`/`useEffect` per component, except for `PermissionsContext` and `TaskContext` (the first slices of the planned global-state work, backlog #11). HTTP calls use Axios with `withCredentials: true` for cookie auth.
 
@@ -234,7 +236,7 @@ Key models: `User`, `Role`, `Project`, `Contact`, `Task`, `TimeEntry`, `Note`, `
 | Google Drive | Design file uploads, survey/completion photos, folder creation | googleapis |
 | Google Picker API | Drive folder picker in project Details tab, Brand Assets tab, Settings page | Backend `/auth/drive-token` exchanges stored refresh token; `VITE_GOOGLE_API_KEY` (browser key) required |
 | Google Maps / Places API | Site address autocomplete in Survey tab | `@googlemaps/js-api-loader`, Places API (New) |
-| Xero Webhook | Real-time contact sync | HMAC-SHA256 verified, no session |
+| Xero Webhook | Real-time contact sync + invoice status/totals | HMAC-SHA256 verified, no session |
 | sms-gate.app | Two-way SMS via an Android gateway phone + private server on the NAS | Basic auth for sending; HMAC-SHA256 signed webhook (`/api/sms/webhook`) |
 
 ## Environment Variables

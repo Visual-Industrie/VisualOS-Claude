@@ -484,6 +484,25 @@ A customer-facing chatbot on the new website (beta.vil.nz) that answers question
 
 ---
 
+### 45. Live Invoice Status from the Xero Webhook
+**Status:** ✅ Shipped — October 19, 2026 (see `complete.md`)
+**Priority:** Medium
+**Labels:** `xero`, `webhook`, `financial`, `realtime`
+
+The Xero webhook received INVOICE events but only logged them, so invoice status only changed when someone pressed Sync Invoices. Handle INVOICE events: update every linked project's invoice from Xero and refresh open pages live.
+
+**Acceptance Criteria:**
+- [x] INVOICE events update status, number, totals and date on every project the invoice is linked to
+- [x] Unlinked invoices and bills skipped without a Xero API call
+- [x] One shared update builder for the webhook, Sync Invoices and the nightly sync
+- [x] `invoice.updated` realtime event; Home, Financial tab and Financial Overview refresh without a reload
+- [x] Constant-time webhook signature check
+- [x] Nightly backstop sync for events the webhook missed
+- [x] Tests: linked, unlinked, missing / 404, other Xero errors, multi-link, sweep, route-level routing
+- [x] `ReleasesPanel.tsx` updated
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
