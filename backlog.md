@@ -426,44 +426,40 @@ Full spec: `sms-messaging-spec.md`. sms-gate.app gateway (Android phone + privat
 ---
 
 ### 43. Website Chatbot + Inbox FAQ Miner
-**Status:** 🚧 In progress — Parts A (knowledge pack) + B (FAQ miner + suggestions review) built in backend #171 / frontend #223. Part C (public chat API, transcripts, chat settings, evals, website widget) still to do. See `spec-43-website-chatbot-faq-miner.md`
+**Status:** 🚧 In progress. The knowledge pack and the FAQ miner are done (see `complete.md`), and 47 drafted entries are loaded in prod. The website chatbot itself is still to do. See `spec-43-website-chatbot-faq-miner.md`
 **Priority:** Medium
 **Labels:** `feature`, `ai`, `customer-facing`, `intake`, `gmail-api`, `website`
 
 A customer-facing chatbot on the new website (beta.vil.nz) that answers questions about what we do, grounded in a knowledge pack we control, and hands qualified enquiries into Kit as projects. The knowledge pack is kept current by a weekly job that mines the `studio@vil.nz` inbox for real customer questions.
 
-**Part A — FAQ miner (build first; produces the knowledge pack)**
-- One-off admin endpoint to backfill ~12 months of studio@ inbound threads, then a weekly `node-cron` run for new mail since the last run
-- Cheap pre-filters before any AI: skip Gmail Promotions/Social/Updates categories, `List-Unsubscribe` headers, and noreply/system senders; prefer threads studio@ replied to (also gives the answer); Xero contact match as an extra "customer" hint
-- Strip signatures, quoted replies, and PII (names, phones, emails) before sending to the model
-- Haiku (via Batch API) classifies remaining mail (customer question / supplier / admin / spam), extracts question + our reply, and compares against the current knowledge pack (covered / partly / new)
-- New items land in a **Suggested FAQs** review queue in Kit → approve / edit / dismiss → approved items join the knowledge pack
+**✅ Done (Oct 2026)**
+- ✅ Knowledge pack: Settings → Chatbot → Knowledge, with categories in Lists (backend #171 / frontend #223)
+- ✅ FAQ miner: backfill + weekly scan of studio@, pre-filters, PII strip, Haiku via the Batch API, Suggestions review queue (backend #171 / frontend #223)
+- ✅ Permission keys: `settings.tab.chatbot.view/.edit`, `action.faq-miner.run`
+- ✅ Unit tests for the PII stripper, mail pre-filter and dedupe
+- ✅ First knowledge pack loaded: 47 entries from `knowledge-pack-draft.json` via the one-off import (backend #172). Two are unpublished pending a decision (see `_review.needsDecision` in the draft)
 
-**Part B — Website chatbot**
+**To do: miner follow-ups**
+- [ ] Remove the one-off `POST /api/knowledge/admin/import` endpoint now that it has run in prod
+- [ ] Create the Anthropic API key, set a monthly spend limit, add `ANTHROPIC_API_KEY` to the NAS `.env`. The miner stays switched off until this is done
+- [ ] Run the first backfill, review the suggestions, then switch on the weekly scan
+
+**To do: website chatbot**
 - Public `POST /api/chat` route on Kit — origin-locked and rate-limited like `/api/quote-requests`; API key stays server-side; max turns per chat, max output tokens, monthly spend limit in the Anthropic console
 - Claude Haiku with the full knowledge pack in a cached system prompt (no RAG/vector DB while it stays small)
 - Guardrails: answer only from the knowledge pack or tool results; say "not sure" and offer handoff otherwise; never commit to prices, dates, or warranty outcomes
 - Tools: `submit_enquiry` (structured fields → existing quote-request intake: contact match → project → task, transcript attached); `get_portfolio_examples` optional
 - Small JS embed widget for the website
 - Transcripts logged in Kit; questions the bot couldn't answer feed the same Suggested FAQs queue
-
-**Knowledge pack**
-- Editable entries in a Settings tab (no deploy to update): services (incl. what we don't do), materials & durability, process & turnaround, service area, policies/T&Cs, FAQ
-- Could share a source with website blog content
-
-**Testing**
-- Backend Vitest for pure utils: PII stripper, sender/mail pre-filter, dedupe/similarity check, enquiry payload mapping
-- Eval suite: 30–50 real (anonymised) customer questions with expected answers + 15–20 known emails for the classifier; re-run on any knowledge or prompt change
+- Chat settings, including a configurable `chatbotName` (default **Kit**)
+- Tests: enquiry payload mapping (Vitest). Eval suite: 30–50 real (anonymised) customer questions with expected answers + 15–20 known emails for the classifier; re-run on any knowledge or prompt change
 
 **Notes:**
 - Expected running cost is a few dollars a month at our volume (Haiku pricing)
-- New permission keys needed (e.g. settings tab for the knowledge pack / FAQ queue)
+- Knowledge pack could share a source with website blog content
 - Out of scope for now: quoting estimator / price guide tool — separate idea, to be backlogged later
-- Assistant is named **Kit** by default (configurable `chatbotName` setting)
 - Multi-tenant: knowledge pack becomes per-org under #32
 
-
----
 
 ### 44. Stop Mounting `mileageRoutes` at Bare `/api`
 **Status:** 📋 Planned
@@ -519,7 +515,7 @@ The Xero webhook received INVOICE events but only logged them, so invoice status
 8. Admin Integration Settings Page (#33)
 9. Standard T&Cs on Xero Quotes (#38)
 10. Two-Way SMS — live test + switch on (#42)
-11. Website Chatbot + Inbox FAQ Miner (#43) — specced, 6 PRs + website widget
+11. Website Chatbot + Inbox FAQ Miner (#43): knowledge pack + miner done, chatbot + website widget to do
 
 ### Low Priority / Cleanup
 1. Move Notes onto Project Details Tab (#37)
@@ -549,7 +545,9 @@ The Xero webhook received INVOICE events but only logged them, so invoice status
 
 ---
 
-**Last Updated:** October 19, 2026 — Added #43 (website chatbot "Kit" + studio@ inbox FAQ miner feeding enquiries into Kit), specced in `spec-43-website-chatbot-faq-miner.md`. Quoting estimator deliberately left out for now.
+**Last Updated:** October 20, 2026 — #43: knowledge pack + FAQ miner shipped, 47 drafted entries imported. Website chatbot still to do.
+
+October 19, 2026 — Added #43 (website chatbot "Kit" + studio@ inbox FAQ miner feeding enquiries into Kit), specced in `spec-43-website-chatbot-faq-miner.md`. Quoting estimator deliberately left out for now.
 
 September 21, 2026 — Added #41 (`setAppId` on the Drive pickers), raised off the Google Picker security email. Confirmed the November 16, 2026 Picker enforcement does not apply to VisualOS (native desktop/mobile apps only).
 
