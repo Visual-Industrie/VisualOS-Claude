@@ -426,7 +426,7 @@ Full spec: `sms-messaging-spec.md`. sms-gate.app gateway (Android phone + privat
 ---
 
 ### 43. Website Chatbot + Inbox FAQ Miner
-**Status:** 📋 Specced — see `spec-43-website-chatbot-faq-miner.md`
+**Status:** 🚧 In progress — Parts A (knowledge pack) + B (FAQ miner + suggestions review) built in backend #171 / frontend #223. Part C (public chat API, transcripts, chat settings, evals, website widget) still to do. See `spec-43-website-chatbot-faq-miner.md`
 **Priority:** Medium
 **Labels:** `feature`, `ai`, `customer-facing`, `intake`, `gmail-api`, `website`
 
