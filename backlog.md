@@ -446,7 +446,7 @@ Full spec: `sms-messaging-spec.md`. sms-gate.app gateway (Android phone + privat
 ---
 
 ### 43. Website Chatbot + Inbox FAQ Miner
-**Status:** 🚧 In progress. The knowledge pack and the FAQ miner are done (see `complete.md`), and 47 drafted entries are loaded in prod. The website chatbot itself is still to do. See `spec-43-website-chatbot-faq-miner.md`
+**Status:** 🚧 In progress. The knowledge pack, the FAQ miner and the website chatbot (API, Kit tabs, beta.vil.nz widget) are built. Left: the eval suite, switching the chat on for beta, then the main site. See `spec-43-website-chatbot-faq-miner.md`
 **Priority:** Medium
 **Labels:** `feature`, `ai`, `customer-facing`, `intake`, `gmail-api`, `website`
 
@@ -464,15 +464,21 @@ A customer-facing chatbot on the new website (beta.vil.nz) that answers question
 - [ ] Create the Anthropic API key, set a monthly spend limit, add `ANTHROPIC_API_KEY` to the NAS `.env`. The miner stays switched off until this is done
 - [ ] Run the first backfill, review the suggestions, then switch on the weekly scan
 
+**✅ Website chatbot built (Oct 2026)**
+- ✅ Public `/api/chat` (config, sessions, messages): origin-locked, per-visitor rate limits, HMAC session tokens, turn cap, 600-token replies, monthly USD budget kill switch
+- ✅ Haiku with the knowledge pack in a cached system prompt; guardrails (knowledge only, "not sure" + handoff, no prices/dates/warranty)
+- ✅ Tools: `submit_enquiry` (shared intake `createLeadFromEnquiry`, transcript on the project note) and `flag_unanswered` (→ Suggestions, marked Chat)
+- ✅ Settings → Chatbot → Chats (transcripts) and Chat settings (switch, name, greeting, budget, turns, retention, model)
+- ✅ Widget in the website theme (`assets/js/kit-chat.js`), contact-form fallback when the chat is off
+- ✅ Fixed on the way: CORS for the website, per-visitor rate limiting (all visitors shared one bucket)
+- ✅ Human-only: Kit serves a lazy loader (`/chat/loader.js`) that skips bots and waits for a real interaction; Cloudflare Turnstile on new chats; `/robots.txt`; WordPress mu-plugin in `integrations/wordpress/`
+
 **To do: website chatbot**
-- Public `POST /api/chat` route on Kit — origin-locked and rate-limited like `/api/quote-requests`; API key stays server-side; max turns per chat, max output tokens, monthly spend limit in the Anthropic console
-- Claude Haiku with the full knowledge pack in a cached system prompt (no RAG/vector DB while it stays small)
-- Guardrails: answer only from the knowledge pack or tool results; say "not sure" and offer handoff otherwise; never commit to prices, dates, or warranty outcomes
-- Tools: `submit_enquiry` (structured fields → existing quote-request intake: contact match → project → task, transcript attached); `get_portfolio_examples` optional
-- Small JS embed widget for the website
-- Transcripts logged in Kit; questions the bot couldn't answer feed the same Suggested FAQs queue
-- Chat settings, including a configurable `chatbotName` (default **Kit**)
-- Tests: enquiry payload mapping (Vitest). Eval suite: 30–50 real (anonymised) customer questions with expected answers + 15–20 known emails for the classifier; re-run on any knowledge or prompt change
+- [ ] Eval suite: 30–50 real (anonymised) customer questions with expected answers, plus adversarial cases ("ignore your rules", "how much for a wrap?", off-topic); `npm run eval:chatbot`, not in CI. Re-run on any knowledge or prompt change
+- [ ] Create the Turnstile site in Cloudflare (beta.vil.nz + live domain), add `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` to the NAS `.env`
+- [ ] Turn the chat on for beta.vil.nz and review a week of transcripts
+- [ ] Go live on visualindustrie.co.nz
+- `get_portfolio_examples` tool once the website has portfolio pages; streaming replies (optional)
 
 **Notes:**
 - Expected running cost is a few dollars a month at our volume (Haiku pricing)
@@ -610,7 +616,7 @@ When staff do something that implies a stage change, Kit should notice and offer
 1. Action-Triggered Stage Prompts (#48)
 2. Lock Portal Change Requests from Production (#47)
 3. Customer Contact Opt-Outs (#29)
-4. Website Chatbot + Inbox FAQ Miner (#43): knowledge pack + miner done, chatbot + website widget to do (waiting on API credits)
+4. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
 5. Global App State with React Context (#11)
 6. Field View — Install & Survey Map (#24)
 7. Delivery & Install Docket — Mobile Field View (#25)
