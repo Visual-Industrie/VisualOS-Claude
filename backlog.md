@@ -61,6 +61,7 @@ This document tracks planned and in-progress features. Completed items live in `
 - Mileage tracking: per-trip logging (standalone/project/task-linked), odometer or direct km, vehicles managed in Settings, project Mileage tab, combined My VisualOS page
 - Public enquiry form at `/enquire` (creates contact + project + follow-up task; work types in Lists; honeypot spam protection)
 - Overview page + Home per-stage stat blocks; project status history log on Details; deleting a project closes it in Xero
+- Two-way SMS (live): sms-gate.app gateway on the NAS, threads keyed on phone number, two-day reply attribution, `/messages` inbox, project Messages tab, live sticky toasts over SSE
 
 ---
 
@@ -183,28 +184,28 @@ When a job hits Install status, a mobile-optimised "docket" view is available fo
 
 ---
 
-### 26. Client Portal (Full)
-**Status:** 📋 Planned
-**Priority:** Medium
-**Labels:** `feature`, `customer-facing`, `magic-link`, `security`
+### 26. Client Portal — Read-Only Job History (Phase 1)
+**Status:** 📋 Planned — reframed October 2026
+**Priority:** Low
+**Labels:** `feature`, `customer-facing`, `magic-link`, `portal`
 
-A persistent (token-gated, no password) client-facing mini-portal extending the Design Approval Phase 2 magic-link pattern. Clients get a single link tied to their contact record that shows all their active projects.
+**Reframe:** the original idea was a full interactive portal (all jobs, install dates, photos, self-serve change requests). Many customers already bypass the existing approve button and just reply "approved" by email, so a big interactive portal risks solving a problem they don't feel. The real kernel of value is **"show me all my stuff"**. Start read-only and only build interaction if customers actually use it.
 
-**Portal features:**
-- All active projects for the client with current status
-- Design file review and approval (Phase 2 already covers this — portal integrates it)
-- Scheduled install dates (from calendar)
-- Completion photos after install
-- Ability to raise a "change request" that creates a Task in VisualOS
-- Branded using the client's brand colours from the Brand Assets tab
+**Phase 1 — read-only history view:**
+- One persistent magic link per customer (tied to the `Contact`), same no-password token pattern as design approval
+- Lists the customer's projects (active + completed) with current stage, using the stage `label` from taxonomy
+- Scheduled install date where one exists on the calendar
+- Approved design (PDF via the existing portal proxy) and completion photos once installed
+- Branded from the Brand Assets tab where available
+- `PortalAuditLog` events for link access, so we can see whether anyone opens it
 
-**Auth model:**
-- Magic link tied to `Contact.xeroContactId` — no login, no password
-- Token stored on Contact model, with optional expiry or rolling refresh
+**Deferred (Phase 2, only if Phase 1 gets used):**
+- Self-serve change requests that create a Task
+- Anything post-install: that's a remediation / warranty job, not a change request, and shouldn't be on a self-serve button at all
 
 **Notes:**
-- Design Approval Phase 2 is already complete — portal absorbs that flow
-- Branding via Brand Assets tab (colours, logo) — existing infrastructure
+- Decide before building: who gets the link (primary contact only?), when it's sent (with the job notification email?), and token expiry vs rolling refresh
+- Related: #47 (lock portal change requests from Production)
 
 ---
 
@@ -240,12 +241,35 @@ Status change triggers an email to the primary project contact via the existing 
 
 ---
 
-### 29. Client Communication Preferences
-**Status:** 📋 Planned
-**Priority:** High
-**Labels:** `feature`, `contacts`, `notifications`
+### 29. Customer Contact Opt-Outs ("Don't contact via")
+**Status:** 📋 Planned — reframed October 2026 (replaces "Client Communication Preferences")
+**Priority:** Medium
+**Labels:** `feature`, `contacts`, `notifications`, `sms`
 
-`communicationPreference` enum (`email`/`sms`/`phone`) on `ProjectContact`. Phone preference = staff reminder task. SMS via Twilio deferred.
+**Reframe:** a single "preferred channel" forces customers to pick one when most are happy with any. What we actually need is the exceptions: "don't text me", "don't email me", "don't call me". An opt-out list is also simpler — no preference enum, no fallback logic.
+
+**Model:**
+- `doNotContactVia String[] @default([])` — values `email` | `sms` | `phone`
+- On `Contact` (organisation level) and `ProjectContact` (person level). Effective opt-outs for a person = union of both.
+
+**Behaviour:**
+- Pure util `canContactVia(contact, projectContact, channel)` — single place every send path asks
+- Job notification emails (`resolveNotificationRecipient`) and design approval sends skip opted-out recipients and say so in the toast
+- SMS sends refuse opted-out numbers; texting STOP (already sets `SmsThread.optedOut`) also adds `sms` to the linked contact's list, so there's one source of truth
+- Notify Customer / Text customer buttons disable with a tooltip explaining why
+- "Don't call" shown as a badge on the contact, project contacts panel, and phone-message modal
+- Multi-select editor on the contact detail page and project contacts panel
+
+**Tests:**
+- Backend: `canContactVia` (all combinations), notification recipient resolution with opt-outs, STOP syncing to the contact
+- Frontend: disabled button states + tooltip text
+
+**Acceptance Criteria:**
+- [ ] `doNotContactVia` on `Contact` + `ProjectContact` + migration
+- [ ] `canContactVia` util used by email, approval, and SMS send paths
+- [ ] STOP → contact opt-out sync
+- [ ] Editor + badges in the UI
+- [ ] `ReleasesPanel.tsx` updated
 
 ---
 
@@ -408,20 +432,16 @@ It works today only because we also request the **restricted** `drive.readonly` 
 
 ---
 
-### 42. Two-Way SMS Messaging + Live Notifications (Prototype)
-**Status:** 🚧 Built — gated off (`SystemSettings.smsEnabled`) until live-tested on the gateway phone
+### 42. Two-Way SMS Messaging + Live Notifications
+**Status:** ✅ Live — October 2026 (gateway running, `smsEnabled` on, messages sent to customers)
 **Priority:** Medium
-**Labels:** `feature`, `sms`, `notifications`, `customer-facing`, `prototype`
+**Labels:** `feature`, `sms`, `notifications`, `customer-facing`
 
-Full spec: `sms-messaging-spec.md`. sms-gate.app gateway (Android phone + private server on the NAS), HMAC-signed webhook, threads keyed on E.164 number, two-day reply attribution, per-user read state vs team-wide "actioned", SMS inbox at `/messages`, project Messages tab, SSE live toasts. Builds the #11 foundation.
+Full spec: `sms-messaging-spec.md`. sms-gate.app gateway (Android phone + private server on the NAS), HMAC-signed webhook, threads keyed on E.164 number, two-day reply attribution, per-user read state vs team-wide "actioned", SMS inbox at `/messages`, project Messages tab, SSE live toasts (stream at `/api/realtime`). Builds the #11 foundation.
 
-**Still to do before switching on:**
-- Set up the gateway phone + private server; set `SMS_GATEWAY_URL`, `SMS_GATEWAY_USERNAME`, `SMS_GATEWAY_PASSWORD`, `SMS_WEBHOOK_SECRET` on the NAS
-- Register the webhook (`sms:received`, `sms:sent`, `sms:delivered`, `sms:failed`) pointing at `https://vis.vil.nz/api/sms/webhook` with the same signing key
-- Check the NAS reverse proxy doesn't buffer or time out `/api/events` (SSE)
-- Grant Messages / Send SMS to the test roles, flip the switch in Settings → Admin
-
-**Possible follow-ups:** "seen by" avatars from `SmsThreadRead`; a way to clear `optedOut` if a customer texts START.
+**Follow-ups:**
+- "Seen by" avatars from `SmsThreadRead`
+- A way to clear `optedOut` if a customer texts START (ties into #29)
 
 ---
 
@@ -499,36 +519,120 @@ The Xero webhook received INVOICE events but only logged them, so invoice status
 
 ---
 
+### 46. Website FAQ Page Fed from Kit's Knowledge Pack
+**Status:** 📋 Specced — see `spec-46-website-faq-from-kit.md`
+**Priority:** High
+**Labels:** `feature`, `website`, `wordpress`, `api`, `webhook`, `faq`
+
+Deliberately separate from #43 so it can ship now, with no AI or API credits needed. The knowledge pack (`KnowledgeEntry`, shipped under #43) is the single source of truth; the website (beta.vil.nz, WordPress) shows a plain FAQ page from the same published entries.
+
+- Public, read-only `GET /api/public/knowledge` on the existing public router (published entries grouped by category, sanitised HTML, ETag)
+- Every knowledge write sends a debounced, HMAC-signed "knowledge updated" ping to WordPress
+- Small `kit-faq` WordPress plugin verifies the ping, re-fetches from Kit and caches locally — the page always renders from the cache, so it's fast and survives Kit being down
+- `[kit_faq]` shortcode renders the accordion + FAQPage structured data; daily fallback re-fetch and a "Resync now" button
+- "Website updated …" status line in Settings → Chatbot → Knowledge
+
+---
+
+### 47. Lock Portal Change Requests Once a Job Hits Production
+**Status:** 📋 Planned
+**Priority:** Medium
+**Labels:** `feature`, `portal`, `design-approval`, `taxonomy`
+
+Once a job is in Production, customers shouldn't be able to self-serve a change request on the approval page. Post-install issues are a remediation job, not a change request.
+
+**Approach — blunt cutoff, tied to a stage flag:**
+- New `project_stage` meta flag `locksPortalChanges` (toggle in Settings → Lists). Seed it on Production; it applies at that stage **and every later stage** (by stage `sortOrder`, same comparison as stage-gated tasks)
+- When locked, the portal hides **Request changes** and shows "Spotted an issue? Give us a call on …" (studio phone from settings)
+- Enforce server-side: feedback POST/PATCH and changes-requested submissions return 409 when the project is locked — not just hidden in the UI
+- Approving stays allowed (late approvals still need recording)
+- No "printed yet" sub-status for now; add a finer-grained flag later only if pre-print tweaks during Production turn out to be common
+
+**Tests:**
+- Backend: pure `isPortalLocked(stage, stages)` util (before / at / after the flagged stage, archived stages, no flag set); route returns 409 when locked
+- Frontend: `ApprovalActions` renders the call-us message instead of Request changes when locked
+
+**Acceptance Criteria:**
+- [ ] `locksPortalChanges` flag in taxonomy meta + Lists toggle
+- [ ] Portal response includes `changesLocked`; UI swaps the button
+- [ ] Server-side 409 on locked feedback/change requests
+- [ ] `ReleasesPanel.tsx` updated
+
+---
+
+### 48. Action-Triggered Stage Prompts
+**Status:** 📋 Planned
+**Priority:** Medium
+**Labels:** `feature`, `workflow`, `ux`, `taxonomy`
+
+When staff do something that implies a stage change, Kit should notice and offer to move the job on — rather than relying on someone remembering to drag the Kanban card. Example: create an invoice on the Financial tab → "Invoice created — move this project to Completed?" **Always a prompt, never automatic.**
+
+**Triggers (code-defined keys):**
+- `invoice.created` — Xero invoice created or linked from the Financial tab
+- `quote.created` — Xero quote created or linked
+- `notification.email.sent` — Notify Customer / stage notification email sent
+- `sms.sent` — text sent from the project Messages tab
+- `design.approved` — design approved (portal or internal)
+
+**Rules (data, not code):**
+- New `StageTransitionRule` model: `trigger`, `fromStage String?` (null = any stage), `toStage`, `isActive`, `sortOrder`. Takes `organisationId` under #32
+- Edited in Settings → Lists (new "Stage prompts" section), gated by the Lists tab's edit key
+- Seed: `invoice.created` → Completed
+- Pure util `suggestTransition(rules, trigger, currentStage, stages)` — returns the target stage or null. Never suggests the current stage or moving backwards
+
+**Flow:**
+- The action's API response includes `suggestedStage` (computed server-side with the util)
+- Frontend `StageSuggestionModal`: "Move to **Completed**?" — **Move** / **Not now**. Shows the consequences of the move (e.g. "closes the Xero project", "emails the customer") using the same flags as the contextual status toast
+- **Move** uses the existing `PATCH /api/projects/:id`, so notifications, `closesXero`, and the status history log all fire as normal
+- Respect the existing stage-change permission — no prompt if the user can't change stages
+
+**Open question:** invoices are created in Xero as drafts. Prompt on create for v1. Since #45 now tracks live invoice status from the Xero webhook, a later `invoice.sent` trigger (status → `AUTHORISED`) could prompt at the moment it's actually sent instead.
+
+**Tests:**
+- Backend: `suggestTransition` (any-stage rules, from-stage match, inactive rules, backwards moves, already at target); routes include `suggestedStage`
+- Frontend: modal renders consequences, Move calls PATCH, Not now closes without a request
+
+**Acceptance Criteria:**
+- [ ] `StageTransitionRule` model + migration + seed
+- [ ] Rules editor in Settings → Lists
+- [ ] `suggestedStage` returned by invoice, quote, notify, SMS, and approval actions
+- [ ] `StageSuggestionModal` wired into each action
+- [ ] `ReleasesPanel.tsx` updated
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
-1. **Client Communication Preferences** (#29)
+1. Website FAQ from Kit's Knowledge Pack (#46) — no AI credits needed
 
 ### Medium Priority
-1. Global App State with React Context (#11)
-2. Field View — Install & Survey Map (#24)
-3. Delivery & Install Docket — Mobile Field View (#25)
-4. Client Portal — Full (#26)
-5. Project Templates (#27)
-6. Project Scaffolding / Decision Tree Wizard (#31)
-7. Multi-Tenancy / Organisation Layer (#32)
-8. Admin Integration Settings Page (#33)
-9. Standard T&Cs on Xero Quotes (#38)
-10. Two-Way SMS — live test + switch on (#42)
-11. Website Chatbot + Inbox FAQ Miner (#43): knowledge pack + miner done, chatbot + website widget to do
+1. Action-Triggered Stage Prompts (#48)
+2. Lock Portal Change Requests from Production (#47)
+3. Customer Contact Opt-Outs (#29)
+4. Website Chatbot + Inbox FAQ Miner (#43): knowledge pack + miner done, chatbot + website widget to do (waiting on API credits)
+5. Global App State with React Context (#11)
+6. Field View — Install & Survey Map (#24)
+7. Delivery & Install Docket — Mobile Field View (#25)
+8. Project Templates (#27)
+9. Project Scaffolding / Decision Tree Wizard (#31)
+10. Multi-Tenancy / Organisation Layer (#32)
+11. Admin Integration Settings Page (#33)
+12. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
-1. Move Notes onto Project Details Tab (#37)
-2. Remove `User.isAdmin` (#40) — cleanup migration after #39
-2. Vitest Setup (Backend) (#12)
-3. Remove `xeroContactName` from Project (#14) — cleanup migration
-4. Business Intelligence Dashboard (#23)
-5. Materials Catalog (#6) — PARKED
-6. Transactional Email Provider (#34) — future
-7. Email / Calendar Provider Abstraction (#35) — future
-8. File Storage Provider Abstraction (#36) — future
-9. Add `setAppId` to the Drive Pickers (#41) — tech debt
-10. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
+1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
+2. Move Notes onto Project Details Tab (#37)
+3. Remove `User.isAdmin` (#40) — cleanup migration after #39
+4. Vitest Setup (Backend) (#12)
+5. Remove `xeroContactName` from Project (#14) — cleanup migration
+6. Business Intelligence Dashboard (#23)
+7. Materials Catalog (#6) — PARKED
+8. Transactional Email Provider (#34) — future
+9. Email / Calendar Provider Abstraction (#35) — future
+10. File Storage Provider Abstraction (#36) — future
+11. Add `setAppId` to the Drive Pickers (#41) — tech debt
+12. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
 
 ---
 
@@ -542,10 +646,13 @@ The Xero webhook received INVOICE events but only logged them, so invoice status
 - Production deploy is automated via GitHub Actions — push to `main`/`master` triggers deploy
 - Xero webhook key and tenant ID stored in `.env` as `XERO_WEBHOOK_KEY` and `XERO_TENANT_ID`
 - VisualOS is being designed with multi-tenancy in mind — new models should be designed to accept an `organisationId` FK when #32 is implemented
+- Every new pure util gets a unit test in the same PR — backend and frontend (Vitest)
 
 ---
 
-**Last Updated:** October 20, 2026 — #43: knowledge pack + FAQ miner shipped, 47 drafted entries imported. Website chatbot still to do.
+**Last Updated:** October 20, 2026 — #42 SMS marked live (gateway health check and webhook logging already shipped). Reframed #29 as contact opt-outs and #26 as a read-only job history portal. Added #46 (website FAQ fed from the knowledge pack, specced in `spec-46-website-faq-from-kit.md`), #47 (lock portal change requests from Production) and #48 (action-triggered stage prompts).
+
+October 20, 2026 — #43: knowledge pack + FAQ miner shipped, 47 drafted entries imported. Website chatbot still to do.
 
 October 19, 2026 — Added #43 (website chatbot "Kit" + studio@ inbox FAQ miner feeding enquiries into Kit), specced in `spec-43-website-chatbot-faq-miner.md`. Quoting estimator deliberately left out for now.
 
