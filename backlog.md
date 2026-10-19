@@ -471,9 +471,11 @@ A customer-facing chatbot on the new website (beta.vil.nz) that answers question
 - ✅ Settings → Chatbot → Chats (transcripts) and Chat settings (switch, name, greeting, budget, turns, retention, model)
 - ✅ Widget in the website theme (`assets/js/kit-chat.js`), contact-form fallback when the chat is off
 - ✅ Fixed on the way: CORS for the website, per-visitor rate limiting (all visitors shared one bucket)
+- ✅ Human-only: Kit serves a lazy loader (`/chat/loader.js`) that skips bots and waits for a real interaction; Cloudflare Turnstile on new chats; `/robots.txt`; WordPress mu-plugin in `integrations/wordpress/`
 
 **To do: website chatbot**
 - [ ] Eval suite: 30–50 real (anonymised) customer questions with expected answers, plus adversarial cases ("ignore your rules", "how much for a wrap?", off-topic); `npm run eval:chatbot`, not in CI. Re-run on any knowledge or prompt change
+- [ ] Create the Turnstile site in Cloudflare (beta.vil.nz + live domain), add `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` to the NAS `.env`
 - [ ] Turn the chat on for beta.vil.nz and review a week of transcripts
 - [ ] Go live on visualindustrie.co.nz
 - `get_portfolio_examples` tool once the website has portfolio pages; streaming replies (optional)
