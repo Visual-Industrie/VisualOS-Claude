@@ -4,6 +4,16 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — Quote Links (#52, PR 1 of 3)
+**Labels:** `feature`, `xero`, `financial`
+
+- **Customer link** on each Financial tab quote: the customer-facing online quote (`https://in.xero.com/…`), stored on the new `ProjectQuote.publicUrl`, with copy and change buttons. Xero's API doesn't return it, so staff paste it once. `PATCH /api/projects/:id/quotes/:quoteId/public-url` accepts `action.quote.manage` **or** `action.design.send-approval` (designers sending approvals may not manage quotes). Kit-only, nothing written to Xero.
+- **View links only.** `xeroQuoteViewUrl()` is the one place the internal link format lives. Quotes created from Kit used to store `/quotes/edit/`; the migration `20261021030000_quote_public_url` rewrote existing rows (case-insensitive).
+- **Wrong-kind pastes explained:** `classifyXeroQuoteUrl()` → `internal | public | invalid` (exact `go.xero.com` / `in.xero.com` hosts over https). An internal link in Customer link, or a customer link in "Link existing", gets a message saying which box it belongs in.
+- `utils/xeroQuoteUrls.ts`, `serialiseQuote()`, `components/Project/Tabs/Financial/QuoteCustomerLink` (reused by the approval modal in PR 2).
+
+---
+
 ### October 2026 — SMS on the Contact Page (#49) + Brand Guideline Files (#51)
 **Labels:** `feature`, `sms`, `contacts`, `google-drive`, `brand-assets`
 

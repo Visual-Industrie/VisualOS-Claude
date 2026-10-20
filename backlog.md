@@ -629,7 +629,7 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 ---
 
 ### 52. Customer People, Contact Picker + Design Approval Email
-**Status:** 📋 Specced — see `spec-52-customer-people-picker.md`
+**Status:** 🚧 In progress — see `spec-52-customer-people-picker.md`. Three PRs per repo: ✅ 1. quote links · ☐ 2. approval email editor · ☐ 3. customer people
 **Priority:** Medium
 **Labels:** `feature`, `contacts`, `xero`, `ux`, `database`
 
@@ -646,8 +646,8 @@ Stop retyping project contacts on every job. Every person added to a project is 
 - The send modal shows the **whole** `approval_request` email (subject + body), all editable, instead of a custom-message box
 - Approve button, quote link and first name show as `[Approve button]` / `[Quote link]` / `[First name]` chips, filled per recipient at send time; can't send without the approve button
 - `[First name]` falls back to the business name when the person has no first name, then "there"
-- Job's **public quote link** included automatically. Xero's API doesn't expose it, so it's stored on `ProjectQuote.publicUrl`, pasted once from the Financial tab or inline in the approval modal
-- Internal Xero quote links on the Financial tab are always **view** links (`/quotes/edit/` → `/quotes/view/`; created quotes currently store an edit link; existing rows fixed by migration). Customer link pasted on the same quote row
+- Job's **public quote link** included automatically. Xero's API doesn't expose it, so it's stored on `ProjectQuote.publicUrl`, pasted once from the Financial tab (✅ PR 1) or inline in the approval modal (PR 2)
+- ✅ (PR 1) Internal Xero quote links on the Financial tab are always **view** links (`/quotes/edit/` → `/quotes/view/`; created quotes currently store an edit link; existing rows fixed by migration). Customer link pasted on the same quote row
 - Fixes a bug: scheduled approval sends currently drop the custom message; the edited draft is now stored on the design file
 - Server-side sanitising + allowlisted placeholder replacement in a tested pure module (`utils/approvalEmail.ts`)
 
