@@ -608,15 +608,9 @@ When staff do something that implies a stage change, Kit should notice and offer
 ---
 
 ### 49. SMS History on the Contact Page
-**Status:** 📋 Specced — see `spec-49-contact-sms-history.md`
-**Priority:** Medium
-**Labels:** `feature`, `sms`, `contacts`, `ux`
+**Status:** ✅ Shipped October 2026 — see `complete.md`
 
-New Messages tab on the contact detail page showing every SMS conversation with that customer, across all their numbers and jobs, with the same reply box as the inbox. A thread belongs to a contact when it's linked to them (`SmsThread.contactId`) or any of its messages is attributed to one of their projects.
-
-- `GET /api/sms/contacts/:contactId` + pure `contactThreadWhere()` util
-- New `contact.tab.messages.view/.edit` keys; hidden while SMS is off
-- Reuses `ThreadView` / `ReplyBox`; replies from here aren't attributed to a project
+Follow-up (with #29): once contact opt-outs land, the contact Messages reply box should respect them too.
 
 ---
 
@@ -628,16 +622,9 @@ Follow-up, not built: Xero's website and extra email fields (e.g. accounts email
 ---
 
 ### 51. Brand Guideline Files on Contact Brand Assets
-**Status:** 📋 Specced — see `spec-51-brand-guideline-files.md`
-**Priority:** Medium
-**Labels:** `feature`, `contacts`, `google-drive`, `brand-assets`
+**Status:** ✅ Shipped October 2026 — see `complete.md`
 
-Link any number of Google Drive files (brand guidelines, logo packs, colour specs) to a contact's Brand Assets tab, each with a staff-set name and description. Drive links only, like design files.
-
-- `ContactBrandFile` model; bulk create / edit / reorder / unlink routes under `/api/contacts/:contactId/brand-files`
-- Multi-select on `DriveFilePickerButton` (default off, so design approval is unchanged), opening in the client's brand folder
-- "Name your files" modal after picking; drag-to-reorder list
-- Uses the existing Brand Assets permission keys
+Follow-up idea: show the customer's brand files on the project page and the Shop Floor design preview.
 
 ---
 
@@ -649,18 +636,16 @@ Link any number of Google Drive files (brand guidelines, logo packs, colour spec
 ### Medium Priority
 1. Action-Triggered Stage Prompts (#48)
 2. Lock Portal Change Requests from Production (#47)
-3. SMS History on the Contact Page (#49) — next of the contact items
-4. Brand Guideline Files on Brand Assets (#51)
-5. Customer Contact Opt-Outs (#29)
-6. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
-7. Global App State with React Context (#11)
-8. Field View — Install & Survey Map (#24)
-9. Delivery & Install Docket — Mobile Field View (#25)
-10. Project Templates (#27)
-11. Project Scaffolding / Decision Tree Wizard (#31)
-12. Multi-Tenancy / Organisation Layer (#32)
-13. Admin Integration Settings Page (#33)
-14. Standard T&Cs on Xero Quotes (#38)
+3. Customer Contact Opt-Outs (#29)
+4. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
+5. Global App State with React Context (#11)
+6. Field View — Install & Survey Map (#24)
+7. Delivery & Install Docket — Mobile Field View (#25)
+8. Project Templates (#27)
+9. Project Scaffolding / Decision Tree Wizard (#31)
+10. Multi-Tenancy / Organisation Layer (#32)
+11. Admin Integration Settings Page (#33)
+12. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
 1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
@@ -692,7 +677,9 @@ Link any number of Google Drive files (brand guidelines, logo packs, colour spec
 
 ---
 
-**Last Updated:** October 21, 2026 — #50 shipped: Overview + Addresses are now one Contact info tab.
+**Last Updated:** October 21, 2026 — #49 (SMS on the contact page) and #51 (brand guideline files) shipped.
+
+October 21, 2026 — #50 shipped: Overview + Addresses are now one Contact info tab.
 
 October 21, 2026 — Added three contact-page items from the Daily Log: #49 (SMS history on the contact page), #50 (Overview + Addresses become one Contact info tab) and #51 (brand guideline files on Brand Assets). Specced in `spec-49-contact-sms-history.md`, `spec-50-simplify-contact-tabs.md` and `spec-51-brand-guideline-files.md`.
 
