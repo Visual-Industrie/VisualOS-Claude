@@ -4,13 +4,30 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
-### October 2026 — Quote Links (#52, PR 1 of 3)
-**Labels:** `feature`, `xero`, `financial`
+### October 2026 — Customer People, Contact Picker + Design Approval Email (#52)
+**Labels:** `feature`, `contacts`, `xero`, `ux`, `database`, `email`
 
-- **Customer link** on each Financial tab quote: the customer-facing online quote (`https://in.xero.com/…`), stored on the new `ProjectQuote.publicUrl`, with copy and change buttons. Xero's API doesn't return it, so staff paste it once. `PATCH /api/projects/:id/quotes/:quoteId/public-url` accepts `action.quote.manage` **or** `action.design.send-approval` (designers sending approvals may not manage quotes). Kit-only, nothing written to Xero.
-- **View links only.** `xeroQuoteViewUrl()` is the one place the internal link format lives. Quotes created from Kit used to store `/quotes/edit/`; the migration `20261021030000_quote_public_url` rewrote existing rows (case-insensitive).
-- **Wrong-kind pastes explained:** `classifyXeroQuoteUrl()` → `internal | public | invalid` (exact `go.xero.com` / `in.xero.com` hosts over https). An internal link in Customer link, or a customer link in "Link existing", gets a message saying which box it belongs in.
-- `utils/xeroQuoteUrls.ts`, `serialiseQuote()`, `components/Project/Tabs/Financial/QuoteCustomerLink` (reused by the approval modal in PR 2).
+Shipped in one round, with one PR per repo.
+
+**Customer people (Part A)**
+- `CustomerPerson` model; `ProjectContact.customerPersonId` (Restrict). Every job contact is a person on the customer, offered again on their next job. Editing a person updates every job they're on. Xero is read-only for people: Kit mirrors the billing contact as a `xero_billing` person (created lazily, refreshed on contact sync, never auto-archived).
+- **Picker:** one searchable list on the job (Xero billing, synced Xero people, Kit people). "Add new person" is inline, with "Use existing" when the email (else name + phone) matches someone already saved. Name alone never matches.
+- **Default primary:** new jobs and Xero-imported jobs get the billing contact. Website / chatbot leads get the enquirer instead (agreed change from the spec).
+- **People tab:** billing contact (read-only, Edit in Xero), Xero people, Kit people with their jobs (add / edit / archive).
+- **Permissions:** `/api/projects/:id/contacts` is now gated on `project.tab.details.view/.edit` (agreed; it was ungated). The people routes use `contact.tab.people.*`.
+- **Reads:** notifications and approval sends go through the person, and the notification recipient now carries `phoneE164`. Legacy `ProjectContact` columns are kept in step for one release.
+- **Backfill:** one-off `POST /api/admin/backfill-customer-people?dryRun=1` (see #53). Local dry run: 2 created, 2 linked, 345 defaulted, 12 skipped.
+
+**Approval email editor (Part B)**
+- **The modal:** shows the whole `approval_request` email (subject + body), with `[Approve button]` / `[Approve link]` / `[Quote link]` / `[First name]` chips filled per recipient. `[First name]` falls back to the business name, then "there". Can't send without the approve chip (UI and server).
+- **Server:** `utils/approvalEmail.ts` (sanitise with `sanitize-html`; only allowlisted placeholders replaced) and `services/approvalSend.ts`. The draft is stored on the `DesignFile`, so **scheduled sends now use the edited text** (bug fix: they used to drop the custom message).
+- **Template migration:** targeted edits (drop `[customMessage]`, add the quote line, small print as coloured spans), so prod wording edits are kept.
+
+**Quote links**
+- **Customer link:** `ProjectQuote.publicUrl`, pasted on the Financial tab or inline in the approval modal (`in.xero.com` only). `PATCH …/quotes/:quoteId/public-url` accepts `action.quote.manage` or `action.design.send-approval`.
+- **View links:** internal links are always `/quotes/view/` (`xeroQuoteViewUrl()`); existing `/edit/` rows were fixed by migration. Wrong-kind pastes say which box they belong in.
+
+No writes to Xero anywhere.
 
 ---
 

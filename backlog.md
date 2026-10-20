@@ -629,29 +629,21 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 ---
 
 ### 52. Customer People, Contact Picker + Design Approval Email
-**Status:** 🚧 In progress — see `spec-52-customer-people-picker.md`. Three PRs per repo: ✅ 1. quote links · ☐ 2. approval email editor · ☐ 3. customer people
-**Priority:** Medium
-**Labels:** `feature`, `contacts`, `xero`, `ux`, `database`
+**Status:** ✅ Shipped October 2026 (one PR per repo, all three parts) — see `complete.md`
 
-Stop retyping project contacts on every job. Every person added to a project is saved against the customer and offered again on that customer's next job. Xero is read-only for people (its API doesn't allow contact updates), so Xero keeps just the **billing contact**; extra people (e.g. several council staff) live only in Kit.
+**Before / after the prod deploy:** run the one-off backfill (dry run first), then remove the endpoint — see #53.
 
-- New `CustomerPerson` model per customer (`source` `kit` | `xero_billing`); `ProjectContact.customerPersonId` links to it, so editing a person updates every job they're on
-- One searchable picker on the project contacts panel: Xero billing contact + Kit people, "+ Add new person" inline, de-dupe by email (else name + phone) with "Use existing"
-- New projects default the Xero billing contact as **primary** on every creation path (~90% of customers have one contact)
-- People tab on the contact page: Xero billing (read-only) + Kit people (add / edit / archive)
-- One-off idempotent backfill of existing project contacts, then remove the endpoint
-- Pure utils (`findMatchingPerson`, `buildPickerOptions`, `planBackfill`, `attachDefaultPrimaryContact`) with Vitest tests in both repos
+---
 
-**Part B — design approval email** (independent of Part A):
-- The send modal shows the **whole** `approval_request` email (subject + body), all editable, instead of a custom-message box
-- Approve button, quote link and first name show as `[Approve button]` / `[Quote link]` / `[First name]` chips, filled per recipient at send time; can't send without the approve button
-- `[First name]` falls back to the business name when the person has no first name, then "there"
-- Job's **public quote link** included automatically. Xero's API doesn't expose it, so it's stored on `ProjectQuote.publicUrl`, pasted once from the Financial tab (✅ PR 1) or inline in the approval modal (PR 2)
-- ✅ (PR 1) Internal Xero quote links on the Financial tab are always **view** links (`/quotes/edit/` → `/quotes/view/`; created quotes currently store an edit link; existing rows fixed by migration). Customer link pasted on the same quote row
-- Fixes a bug: scheduled approval sends currently drop the custom message; the edited draft is now stored on the design file
-- Server-side sanitising + allowlisted placeholder replacement in a tested pure module (`utils/approvalEmail.ts`)
+### 53. #52 Cleanup — backfill, then drop legacy ProjectContact columns
+**Status:** 📋 Waiting on the #52 prod backfill
+**Priority:** Low
+**Labels:** `cleanup`, `database`, `contacts`
 
-**Follow-up (cleanup, after #52 has run in prod):** drop the legacy `firstName` / `lastName` / `email` / `phone` / `xeroContactId` columns from `ProjectContact`.
+1. In prod, as an admin: `POST /api/admin/backfill-customer-people?dryRun=1`, check the counts, then run it without `dryRun`. Idempotent.
+2. Remove `backfillCustomerPeopleRoutes.ts`, `services/backfillCustomerPeople.ts` and the mount in `mountRoutes.ts`.
+3. Once every read goes through `customerPerson`: drop `ProjectContact.firstName` / `lastName` / `email` / `phone` / `xeroContactId` (same pattern as #14). Move SMS matching (`findPhoneMatches`, `sendFromProject`, the project Messages recipients) onto `CustomerPerson.phoneE164` first, and make `customerPersonId` required.
+4. Drop the legacy `customMessage` path from `send-approval` / `preview-email` and `[customMessage]` from `TEMPLATE_SHORTCODES`.
 
 ---
 
@@ -661,33 +653,33 @@ Stop retyping project contacts on every job. Every person added to a project is 
 1. Website FAQ from Kit's Knowledge Pack (#46) — no AI credits needed
 
 ### Medium Priority
-1. Customer People, Contact Picker + Design Approval Email (#52)
-2. Action-Triggered Stage Prompts (#48)
-3. Lock Portal Change Requests from Production (#47)
-4. Customer Contact Opt-Outs (#29)
-5. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
-6. Global App State with React Context (#11)
-7. Field View — Install & Survey Map (#24)
-8. Delivery & Install Docket — Mobile Field View (#25)
-9. Project Templates (#27)
-10. Project Scaffolding / Decision Tree Wizard (#31)
-11. Multi-Tenancy / Organisation Layer (#32)
-12. Admin Integration Settings Page (#33)
-13. Standard T&Cs on Xero Quotes (#38)
+1. Action-Triggered Stage Prompts (#48)
+2. Lock Portal Change Requests from Production (#47)
+3. Customer Contact Opt-Outs (#29)
+4. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
+5. Global App State with React Context (#11)
+6. Field View — Install & Survey Map (#24)
+7. Delivery & Install Docket — Mobile Field View (#25)
+8. Project Templates (#27)
+9. Project Scaffolding / Decision Tree Wizard (#31)
+10. Multi-Tenancy / Organisation Layer (#32)
+11. Admin Integration Settings Page (#33)
+12. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
-1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
-2. Move Notes onto Project Details Tab (#37)
-3. Remove `User.isAdmin` (#40) — cleanup migration after #39
-4. Vitest Setup (Backend) (#12)
-5. Remove `xeroContactName` from Project (#14) — cleanup migration
-6. Business Intelligence Dashboard (#23)
-7. Materials Catalog (#6) — PARKED
-8. Transactional Email Provider (#34) — future
-9. Email / Calendar Provider Abstraction (#35) — future
-10. File Storage Provider Abstraction (#36) — future
-11. Add `setAppId` to the Drive Pickers (#41) — tech debt
-12. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
+1. #52 cleanup — run the backfill in prod, remove the endpoint, then drop legacy ProjectContact columns (#53)
+2. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
+3. Move Notes onto Project Details Tab (#37)
+4. Remove `User.isAdmin` (#40) — cleanup migration after #39
+5. Vitest Setup (Backend) (#12)
+6. Remove `xeroContactName` from Project (#14) — cleanup migration
+7. Business Intelligence Dashboard (#23)
+8. Materials Catalog (#6) — PARKED
+9. Transactional Email Provider (#34) — future
+10. Email / Calendar Provider Abstraction (#35) — future
+11. File Storage Provider Abstraction (#36) — future
+12. Add `setAppId` to the Drive Pickers (#41) — tech debt
+13. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
 
 ---
 
@@ -705,7 +697,9 @@ Stop retyping project contacts on every job. Every person added to a project is 
 
 ---
 
-**Last Updated:** October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
+**Last Updated:** October 21, 2026 — #52 shipped in one round (customer people + picker, approval email editor, quote links); #53 cleanup added.
+
+October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
 
 October 21, 2026 — #49 (SMS on the contact page) and #51 (brand guideline files) shipped.
 
