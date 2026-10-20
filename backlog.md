@@ -628,24 +628,52 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 
 ---
 
+### 52. Customer People, Contact Picker + Design Approval Email
+**Status:** 📋 Specced — see `spec-52-customer-people-picker.md`
+**Priority:** Medium
+**Labels:** `feature`, `contacts`, `xero`, `ux`, `database`
+
+Stop retyping project contacts on every job. Every person added to a project is saved against the customer and offered again on that customer's next job. Xero is read-only for people (its API doesn't allow contact updates), so Xero keeps just the **billing contact**; extra people (e.g. several council staff) live only in Kit.
+
+- New `CustomerPerson` model per customer (`source` `kit` | `xero_billing`); `ProjectContact.customerPersonId` links to it, so editing a person updates every job they're on
+- One searchable picker on the project contacts panel: Xero billing contact + Kit people, "+ Add new person" inline, de-dupe by email (else name + phone) with "Use existing"
+- New projects default the Xero billing contact as **primary** on every creation path (~90% of customers have one contact)
+- People tab on the contact page: Xero billing (read-only) + Kit people (add / edit / archive)
+- One-off idempotent backfill of existing project contacts, then remove the endpoint
+- Pure utils (`findMatchingPerson`, `buildPickerOptions`, `planBackfill`, `attachDefaultPrimaryContact`) with Vitest tests in both repos
+
+**Part B — design approval email** (independent of Part A):
+- The send modal shows the **whole** `approval_request` email (subject + body), all editable, instead of a custom-message box
+- Approve button, quote link and first name show as `[Approve button]` / `[Quote link]` / `[First name]` chips, filled per recipient at send time; can't send without the approve button
+- `[First name]` falls back to the business name when the person has no first name, then "there"
+- Job's **public quote link** included automatically. Xero's API doesn't expose it, so it's stored on `ProjectQuote.publicUrl`, pasted once from the Financial tab or inline in the approval modal
+- Internal Xero quote links on the Financial tab are always **view** links (`/quotes/edit/` → `/quotes/view/`; created quotes currently store an edit link; existing rows fixed by migration). Customer link pasted on the same quote row
+- Fixes a bug: scheduled approval sends currently drop the custom message; the edited draft is now stored on the design file
+- Server-side sanitising + allowlisted placeholder replacement in a tested pure module (`utils/approvalEmail.ts`)
+
+**Follow-up (cleanup, after #52 has run in prod):** drop the legacy `firstName` / `lastName` / `email` / `phone` / `xeroContactId` columns from `ProjectContact`.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
 1. Website FAQ from Kit's Knowledge Pack (#46) — no AI credits needed
 
 ### Medium Priority
-1. Action-Triggered Stage Prompts (#48)
-2. Lock Portal Change Requests from Production (#47)
-3. Customer Contact Opt-Outs (#29)
-4. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
-5. Global App State with React Context (#11)
-6. Field View — Install & Survey Map (#24)
-7. Delivery & Install Docket — Mobile Field View (#25)
-8. Project Templates (#27)
-9. Project Scaffolding / Decision Tree Wizard (#31)
-10. Multi-Tenancy / Organisation Layer (#32)
-11. Admin Integration Settings Page (#33)
-12. Standard T&Cs on Xero Quotes (#38)
+1. Customer People, Contact Picker + Design Approval Email (#52)
+2. Action-Triggered Stage Prompts (#48)
+3. Lock Portal Change Requests from Production (#47)
+4. Customer Contact Opt-Outs (#29)
+5. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
+6. Global App State with React Context (#11)
+7. Field View — Install & Survey Map (#24)
+8. Delivery & Install Docket — Mobile Field View (#25)
+9. Project Templates (#27)
+10. Project Scaffolding / Decision Tree Wizard (#31)
+11. Multi-Tenancy / Organisation Layer (#32)
+12. Admin Integration Settings Page (#33)
+13. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
 1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
@@ -677,7 +705,9 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 
 ---
 
-**Last Updated:** October 21, 2026 — #49 (SMS on the contact page) and #51 (brand guideline files) shipped.
+**Last Updated:** October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
+
+October 21, 2026 — #49 (SMS on the contact page) and #51 (brand guideline files) shipped.
 
 October 21, 2026 — #50 shipped: Overview + Addresses are now one Contact info tab.
 
