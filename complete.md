@@ -4,6 +4,18 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — Contact Info Tab (#50)
+**Labels:** `ux`, `contacts`, `cleanup`, `frontend`
+
+- **One Contact info tab replaces Overview and Addresses**, and it opens first. Phones are sorted mobile → phone → DDI → fax, with empty Xero rows dropped and duplicates removed. Each phone has a `tel:` link (E.164, same rules as the backend's `normalisePhone`) and a copy button. The email has a mailto link and a copy button. Addresses show street before postal, every one with content (previously only the first of each type), Attn kept, "Open in Maps" on street addresses, and a copy button. Read-only; Xero stays the source of truth.
+- **Header:** payment terms moved up from Overview, and there's a new orange "No client folder" badge (customers with no Drive folder), the same as on the project page.
+- **Tab URLs:** `/contacts/:id/:tab?`. Tabs are RouterLinks like the project page, and `resolveContactTab()` (`utils/contactTabs.ts`) maps `overview` / `addresses` → `contact-info` and corrects the URL.
+- **Permissions:** the `contact.tab.overview.*` key pair was kept and relabelled "Contact info", so roles keep their access with no migration. The `contact.tab.addresses.*` keys were removed (stale ones are ignored on read and stripped on write).
+- Pure helpers in `utils/contactFormat.ts` (`sortContactPhones`, `formatContactPhone`, `formatContactAddress`, `hasAddressContent`, `sortContactAddresses`, `contactAddressMapsHref`, `formatPaymentTerms`), with tests.
+- Not built: Xero website and extra emails, which aren't stored yet (see the #50 follow-up in the backlog).
+
+---
+
 ### October 2026 — Knowledge Pack + Inbox FAQ Miner (#43, part 1)
 **Labels:** `feature`, `ai`, `gmail-api`, `settings`
 
