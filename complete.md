@@ -4,6 +4,25 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — SMS on the Contact Page (#49) + Brand Guideline Files (#51)
+**Labels:** `feature`, `sms`, `contacts`, `google-drive`, `brand-assets`
+
+**#49 — Messages tab on the contact page**
+- Every SMS conversation with the customer, across their numbers and jobs. A thread belongs to a contact when it's linked to them **or** any message is filed against one of their projects (`contactThreadWhere()`, `utils/contactSms.ts`). `GET /api/sms/contacts/:contactId` returns threads with unread, a preview and their job tags, plus the contact's textable numbers.
+- One conversation shows directly; several get a list (unread dot, job tags) beside the selected one, with `?thread=` for deep links. Reuses `ThreadView` with a new `canEdit` prop; `ReplyBox` gained `disabledReason` to lock the box for read-only access.
+- Replies keep the thread's current job, matching the inbox (the spec said "unattributed", but the inbox actually keeps the job; sending unattributed would have cleared the thread's job tag). "New text" goes through a new `POST /api/sms/contacts/:contactId` / `sendFromContact()`, not tied to a job.
+- Text shortcut beside mobiles on Contact info. Unread count on the tab label (`hooks/useContactSms`). Live refresh on `sms.received` / `sms.updated`. Hidden while SMS is off.
+- New `contact.tab.messages.view/.edit` keys. The thread detail, read, reply and action routes accept them, `SMS_EVENT_AUDIENCE` includes the view key, and `MessagingContext` loads the SMS switch for contact-tab-only users.
+
+**#51 — Guidelines & files on Brand Assets**
+- `ContactBrandFile` model (migration `20261021020000_contact_brand_files`). Routes at `/api/contacts/:contactId/brand-files`: list, bulk create (already-linked files skipped, max 20), edit, reorder, unlink. Zod validation, scoped to the contact, existing Brand Assets keys.
+- `DriveFilePickerButton` got `multiple` / `onFilesSelected` (off by default, so design approval is unchanged); it opens in the client's brand folder, else the base folder.
+- "Name your files" modal (names pre-filled from the file name, already-added greyed), drag-to-reorder list, edit modal, remove confirm ("The file stays in Drive"). Edit controls hidden without `.edit`.
+
+Shipped together on `feature/ContactSmsAndBrandFiles` (one backend PR, one frontend PR).
+
+---
+
 ### October 2026 — Contact Info Tab (#50)
 **Labels:** `ux`, `contacts`, `cleanup`, `frontend`
 
