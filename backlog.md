@@ -621,16 +621,9 @@ New Messages tab on the contact detail page showing every SMS conversation with 
 ---
 
 ### 50. Simplify the Contact Page (Contact Info Tab)
-**Status:** 📋 Specced — see `spec-50-simplify-contact-tabs.md`
-**Priority:** Medium
-**Labels:** `ux`, `contacts`, `cleanup`, `frontend`
+**Status:** ✅ Shipped October 2026 — see `complete.md`
 
-Replace the Overview and Addresses tabs with one **Contact info** tab (default) holding phones (tap to call), email and addresses (Open in Maps) together. One-line Overview fields move to the page header; nothing dropped silently.
-
-- Reuse the Overview permission key pair, relabelled "Contact info" (keys are permanent); remove the Addresses keys
-- Old `overview` / `addresses` URLs redirect to `contact-info` via `resolveContactTab()`
-- Pure `contactFormat` helpers (phone ordering, address formatting) with tests
-- Do this before or alongside #49 and #51, which both touch the contact tab strip
+Follow-up, not built: Xero's website and extra email fields (e.g. accounts email) aren't stored on `Contact`, so the Contact info tab only shows `emailAddress`. Showing them needs new columns plus the Xero sync / webhook to fill them.
 
 ---
 
@@ -656,19 +649,18 @@ Link any number of Google Drive files (brand guidelines, logo packs, colour spec
 ### Medium Priority
 1. Action-Triggered Stage Prompts (#48)
 2. Lock Portal Change Requests from Production (#47)
-3. Simplify the Contact Page — Contact info tab (#50) — do first of the contact items
-4. SMS History on the Contact Page (#49)
-5. Brand Guideline Files on Brand Assets (#51)
-6. Customer Contact Opt-Outs (#29)
-7. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
-8. Global App State with React Context (#11)
-9. Field View — Install & Survey Map (#24)
-10. Delivery & Install Docket — Mobile Field View (#25)
-11. Project Templates (#27)
-12. Project Scaffolding / Decision Tree Wizard (#31)
-13. Multi-Tenancy / Organisation Layer (#32)
-14. Admin Integration Settings Page (#33)
-15. Standard T&Cs on Xero Quotes (#38)
+3. SMS History on the Contact Page (#49) — next of the contact items
+4. Brand Guideline Files on Brand Assets (#51)
+5. Customer Contact Opt-Outs (#29)
+6. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
+7. Global App State with React Context (#11)
+8. Field View — Install & Survey Map (#24)
+9. Delivery & Install Docket — Mobile Field View (#25)
+10. Project Templates (#27)
+11. Project Scaffolding / Decision Tree Wizard (#31)
+12. Multi-Tenancy / Organisation Layer (#32)
+13. Admin Integration Settings Page (#33)
+14. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
 1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
@@ -700,7 +692,9 @@ Link any number of Google Drive files (brand guidelines, logo packs, colour spec
 
 ---
 
-**Last Updated:** October 21, 2026 — Added three contact-page items from the Daily Log: #49 (SMS history on the contact page), #50 (Overview + Addresses become one Contact info tab) and #51 (brand guideline files on Brand Assets). Specced in `spec-49-contact-sms-history.md`, `spec-50-simplify-contact-tabs.md` and `spec-51-brand-guideline-files.md`.
+**Last Updated:** October 21, 2026 — #50 shipped: Overview + Addresses are now one Contact info tab.
+
+October 21, 2026 — Added three contact-page items from the Daily Log: #49 (SMS history on the contact page), #50 (Overview + Addresses become one Contact info tab) and #51 (brand guideline files on Brand Assets). Specced in `spec-49-contact-sms-history.md`, `spec-50-simplify-contact-tabs.md` and `spec-51-brand-guideline-files.md`.
 
 October 20, 2026 — #42 SMS marked live (gateway health check and webhook logging already shipped). Reframed #29 as contact opt-outs and #26 as a read-only job history portal. Added #46 (website FAQ fed from the knowledge pack, specced in `spec-46-website-faq-from-kit.md`), #47 (lock portal change requests from Production) and #48 (action-triggered stage prompts).
 
