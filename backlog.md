@@ -628,6 +628,25 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 
 ---
 
+### 52. Customer People, Contact Picker + Design Approval Email
+**Status:** ✅ Shipped October 2026 (one PR per repo, all three parts) — see `complete.md`
+
+**Before / after the prod deploy:** run the one-off backfill (dry run first), then remove the endpoint — see #53.
+
+---
+
+### 53. #52 Cleanup — backfill, then drop legacy ProjectContact columns
+**Status:** 📋 Waiting on the #52 prod backfill
+**Priority:** Low
+**Labels:** `cleanup`, `database`, `contacts`
+
+1. In prod, as an admin: `POST /api/admin/backfill-customer-people?dryRun=1`, check the counts, then run it without `dryRun`. Idempotent.
+2. Remove `backfillCustomerPeopleRoutes.ts`, `services/backfillCustomerPeople.ts` and the mount in `mountRoutes.ts`.
+3. Once every read goes through `customerPerson`: drop `ProjectContact.firstName` / `lastName` / `email` / `phone` / `xeroContactId` (same pattern as #14). Move SMS matching (`findPhoneMatches`, `sendFromProject`, the project Messages recipients) onto `CustomerPerson.phoneE164` first, and make `customerPersonId` required.
+4. Drop the legacy `customMessage` path from `send-approval` / `preview-email` and `[customMessage]` from `TEMPLATE_SHORTCODES`.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -648,18 +667,19 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 12. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
-1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
-2. Move Notes onto Project Details Tab (#37)
-3. Remove `User.isAdmin` (#40) — cleanup migration after #39
-4. Vitest Setup (Backend) (#12)
-5. Remove `xeroContactName` from Project (#14) — cleanup migration
-6. Business Intelligence Dashboard (#23)
-7. Materials Catalog (#6) — PARKED
-8. Transactional Email Provider (#34) — future
-9. Email / Calendar Provider Abstraction (#35) — future
-10. File Storage Provider Abstraction (#36) — future
-11. Add `setAppId` to the Drive Pickers (#41) — tech debt
-12. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
+1. #52 cleanup — run the backfill in prod, remove the endpoint, then drop legacy ProjectContact columns (#53)
+2. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
+3. Move Notes onto Project Details Tab (#37)
+4. Remove `User.isAdmin` (#40) — cleanup migration after #39
+5. Vitest Setup (Backend) (#12)
+6. Remove `xeroContactName` from Project (#14) — cleanup migration
+7. Business Intelligence Dashboard (#23)
+8. Materials Catalog (#6) — PARKED
+9. Transactional Email Provider (#34) — future
+10. Email / Calendar Provider Abstraction (#35) — future
+11. File Storage Provider Abstraction (#36) — future
+12. Add `setAppId` to the Drive Pickers (#41) — tech debt
+13. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
 
 ---
 
@@ -677,7 +697,11 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 
 ---
 
-**Last Updated:** October 21, 2026 — #49 (SMS on the contact page) and #51 (brand guideline files) shipped.
+**Last Updated:** October 21, 2026 — #52 shipped in one round (customer people + picker, approval email editor, quote links); #53 cleanup added.
+
+October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
+
+October 21, 2026 — #49 (SMS on the contact page) and #51 (brand guideline files) shipped.
 
 October 21, 2026 — #50 shipped: Overview + Addresses are now one Contact info tab.
 

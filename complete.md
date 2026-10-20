@@ -4,6 +4,33 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — Customer People, Contact Picker + Design Approval Email (#52)
+**Labels:** `feature`, `contacts`, `xero`, `ux`, `database`, `email`
+
+Shipped in one round, with one PR per repo.
+
+**Customer people (Part A)**
+- `CustomerPerson` model; `ProjectContact.customerPersonId` (Restrict). Every job contact is a person on the customer, offered again on their next job. Editing a person updates every job they're on. Xero is read-only for people: Kit mirrors the billing contact as a `xero_billing` person (created lazily, refreshed on contact sync, never auto-archived).
+- **Picker:** one searchable list on the job (Xero billing, synced Xero people, Kit people). "Add new person" is inline, with "Use existing" when the email (else name + phone) matches someone already saved. Name alone never matches.
+- **Default primary:** new jobs and Xero-imported jobs get the billing contact. Website / chatbot leads get the enquirer instead (agreed change from the spec).
+- **People tab:** billing contact (read-only, Edit in Xero), Xero people, Kit people with their jobs (add / edit / archive).
+- **Permissions:** `/api/projects/:id/contacts` is now gated on `project.tab.details.view/.edit` (agreed; it was ungated). The people routes use `contact.tab.people.*`.
+- **Reads:** notifications and approval sends go through the person, and the notification recipient now carries `phoneE164`. Legacy `ProjectContact` columns are kept in step for one release.
+- **Backfill:** one-off `POST /api/admin/backfill-customer-people?dryRun=1` (see #53). Local dry run: 2 created, 2 linked, 345 defaulted, 12 skipped.
+
+**Approval email editor (Part B)**
+- **The modal:** shows the whole `approval_request` email (subject + body), with `[Approve button]` / `[Approve link]` / `[Quote link]` / `[First name]` chips filled per recipient. `[First name]` falls back to the business name, then "there". Can't send without the approve chip (UI and server).
+- **Server:** `utils/approvalEmail.ts` (sanitise with `sanitize-html`; only allowlisted placeholders replaced) and `services/approvalSend.ts`. The draft is stored on the `DesignFile`, so **scheduled sends now use the edited text** (bug fix: they used to drop the custom message).
+- **Template migration:** targeted edits (drop `[customMessage]`, add the quote line, small print as coloured spans), so prod wording edits are kept.
+
+**Quote links**
+- **Customer link:** `ProjectQuote.publicUrl`, pasted on the Financial tab or inline in the approval modal (`in.xero.com` only). `PATCH …/quotes/:quoteId/public-url` accepts `action.quote.manage` or `action.design.send-approval`.
+- **View links:** internal links are always `/quotes/view/` (`xeroQuoteViewUrl()`); existing `/edit/` rows were fixed by migration. Wrong-kind pastes say which box they belong in.
+
+No writes to Xero anywhere.
+
+---
+
 ### October 2026 — SMS on the Contact Page (#49) + Brand Guideline Files (#51)
 **Labels:** `feature`, `sms`, `contacts`, `google-drive`, `brand-assets`
 
