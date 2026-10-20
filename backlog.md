@@ -607,6 +607,47 @@ When staff do something that implies a stage change, Kit should notice and offer
 
 ---
 
+### 49. SMS History on the Contact Page
+**Status:** 📋 Specced — see `spec-49-contact-sms-history.md`
+**Priority:** Medium
+**Labels:** `feature`, `sms`, `contacts`, `ux`
+
+New Messages tab on the contact detail page showing every SMS conversation with that customer, across all their numbers and jobs, with the same reply box as the inbox. A thread belongs to a contact when it's linked to them (`SmsThread.contactId`) or any of its messages is attributed to one of their projects.
+
+- `GET /api/sms/contacts/:contactId` + pure `contactThreadWhere()` util
+- New `contact.tab.messages.view/.edit` keys; hidden while SMS is off
+- Reuses `ThreadView` / `ReplyBox`; replies from here aren't attributed to a project
+
+---
+
+### 50. Simplify the Contact Page (Contact Info Tab)
+**Status:** 📋 Specced — see `spec-50-simplify-contact-tabs.md`
+**Priority:** Medium
+**Labels:** `ux`, `contacts`, `cleanup`, `frontend`
+
+Replace the Overview and Addresses tabs with one **Contact info** tab (default) holding phones (tap to call), email and addresses (Open in Maps) together. One-line Overview fields move to the page header; nothing dropped silently.
+
+- Reuse the Overview permission key pair, relabelled "Contact info" (keys are permanent); remove the Addresses keys
+- Old `overview` / `addresses` URLs redirect to `contact-info` via `resolveContactTab()`
+- Pure `contactFormat` helpers (phone ordering, address formatting) with tests
+- Do this before or alongside #49 and #51, which both touch the contact tab strip
+
+---
+
+### 51. Brand Guideline Files on Contact Brand Assets
+**Status:** 📋 Specced — see `spec-51-brand-guideline-files.md`
+**Priority:** Medium
+**Labels:** `feature`, `contacts`, `google-drive`, `brand-assets`
+
+Link any number of Google Drive files (brand guidelines, logo packs, colour specs) to a contact's Brand Assets tab, each with a staff-set name and description. Drive links only, like design files.
+
+- `ContactBrandFile` model; bulk create / edit / reorder / unlink routes under `/api/contacts/:contactId/brand-files`
+- Multi-select on `DriveFilePickerButton` (default off, so design approval is unchanged), opening in the client's brand folder
+- "Name your files" modal after picking; drag-to-reorder list
+- Uses the existing Brand Assets permission keys
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -615,16 +656,19 @@ When staff do something that implies a stage change, Kit should notice and offer
 ### Medium Priority
 1. Action-Triggered Stage Prompts (#48)
 2. Lock Portal Change Requests from Production (#47)
-3. Customer Contact Opt-Outs (#29)
-4. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
-5. Global App State with React Context (#11)
-6. Field View — Install & Survey Map (#24)
-7. Delivery & Install Docket — Mobile Field View (#25)
-8. Project Templates (#27)
-9. Project Scaffolding / Decision Tree Wizard (#31)
-10. Multi-Tenancy / Organisation Layer (#32)
-11. Admin Integration Settings Page (#33)
-12. Standard T&Cs on Xero Quotes (#38)
+3. Simplify the Contact Page — Contact info tab (#50) — do first of the contact items
+4. SMS History on the Contact Page (#49)
+5. Brand Guideline Files on Brand Assets (#51)
+6. Customer Contact Opt-Outs (#29)
+7. Website Chatbot + Inbox FAQ Miner (#43): all built; evals, beta trial and go-live to do
+8. Global App State with React Context (#11)
+9. Field View — Install & Survey Map (#24)
+10. Delivery & Install Docket — Mobile Field View (#25)
+11. Project Templates (#27)
+12. Project Scaffolding / Decision Tree Wizard (#31)
+13. Multi-Tenancy / Organisation Layer (#32)
+14. Admin Integration Settings Page (#33)
+15. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
 1. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
@@ -656,7 +700,9 @@ When staff do something that implies a stage change, Kit should notice and offer
 
 ---
 
-**Last Updated:** October 20, 2026 — #42 SMS marked live (gateway health check and webhook logging already shipped). Reframed #29 as contact opt-outs and #26 as a read-only job history portal. Added #46 (website FAQ fed from the knowledge pack, specced in `spec-46-website-faq-from-kit.md`), #47 (lock portal change requests from Production) and #48 (action-triggered stage prompts).
+**Last Updated:** October 21, 2026 — Added three contact-page items from the Daily Log: #49 (SMS history on the contact page), #50 (Overview + Addresses become one Contact info tab) and #51 (brand guideline files on Brand Assets). Specced in `spec-49-contact-sms-history.md`, `spec-50-simplify-contact-tabs.md` and `spec-51-brand-guideline-files.md`.
+
+October 20, 2026 — #42 SMS marked live (gateway health check and webhook logging already shipped). Reframed #29 as contact opt-outs and #26 as a read-only job history portal. Added #46 (website FAQ fed from the knowledge pack, specced in `spec-46-website-faq-from-kit.md`), #47 (lock portal change requests from Production) and #48 (action-triggered stage prompts).
 
 October 20, 2026 — #43: knowledge pack + FAQ miner shipped, 47 drafted entries imported. Website chatbot still to do.
 
