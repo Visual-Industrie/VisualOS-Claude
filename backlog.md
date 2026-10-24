@@ -631,11 +631,18 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 ### 52. Customer People, Contact Picker + Design Approval Email
 **Status:** ✅ Shipped October 2026 (one PR per repo, all three parts) — see `complete.md`
 
-**Before / after the prod deploy:** run the one-off backfill (dry run first), then remove the endpoint — see #53.
+**Before / after the prod deploy:** run the one-off backfill (dry run first), then remove the endpoint — see #54.
 
 ---
 
-### 53. #52 Cleanup — backfill, then drop legacy ProjectContact columns
+### 53. Stock & Offcut Management (+ Deliverables)
+**Status:** ✅ Shipped October 2026 — see `complete.md`; spec `spec-53-stock-management.md`
+
+Optional parts not built (low-stock alerts, monthly usage report) and other follow-ups are #55.
+
+---
+
+### 54. #52 Cleanup — backfill, then drop legacy ProjectContact columns
 **Status:** 📋 Waiting on the #52 prod backfill
 **Priority:** Low
 **Labels:** `cleanup`, `database`, `contacts`
@@ -644,6 +651,23 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 2. Remove `backfillCustomerPeopleRoutes.ts`, `services/backfillCustomerPeople.ts` and the mount in `mountRoutes.ts`.
 3. Once every read goes through `customerPerson`: drop `ProjectContact.firstName` / `lastName` / `email` / `phone` / `xeroContactId` (same pattern as #14). Move SMS matching (`findPhoneMatches`, `sendFromProject`, the project Messages recipients) onto `CustomerPerson.phoneE164` first, and make `customerPersonId` required.
 4. Drop the legacy `customMessage` path from `send-approval` / `preview-email` and `[customMessage]` from `TEMPLATE_SHORTCODES`.
+
+Was numbered #53 until the stock spec took that number; renumbered October 2026 (nothing in the code referred to it as #53).
+
+---
+
+### 55. Stock Follow-ups — low-stock alerts, usage report, loose ends from #53
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `feature`, `inventory`, `reporting`
+
+Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wording).
+
+1. **Low-stock alerts (off by default).** `SystemSettings.stockLowAlertsEnabled` (default `false`) in Settings → Admin. When on: a minimum full-sheet level per linked Xero material, a warning badge on the Stock page when a stack falls below it, and an optional task. Off for Visual Industrie (consignment stock, the supplier tops up monthly) — it's for other businesses, so design it per organisation (#32).
+2. **Sheets used this month.** Per material, from pieces marked `used` (`updatedAt` in the month, Pacific/Auckland) — for the monthly consignment report to the supplier. A pure `monthlyUsage(pieces, month)` util with tests, and a small report on the Stock page.
+3. **Pick any piece, not just a suggested one.** The spec says staff can choose a piece Kit didn't suggest. Today "Use" is only on suggestions (all matches via "X other candidates available"); a piece of the wrong spec can't be chosen.
+4. **Minimum offcut size.** A setting below which offcuts aren't suggested (or are flagged as worth discarding).
+5. **Drop the legacy `Deliverable` fields** (`type`, `finishType`, `materialType`, `materialId`, `laminateId`) once Shop Floor stops reading them, and show the deliverable's chosen piece on the Shop Floor card instead.
 
 ---
 
@@ -667,19 +691,20 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 12. Standard T&Cs on Xero Quotes (#38)
 
 ### Low Priority / Cleanup
-1. #52 cleanup — run the backfill in prod, remove the endpoint, then drop legacy ProjectContact columns (#53)
-2. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
-3. Move Notes onto Project Details Tab (#37)
-4. Remove `User.isAdmin` (#40) — cleanup migration after #39
-5. Vitest Setup (Backend) (#12)
-6. Remove `xeroContactName` from Project (#14) — cleanup migration
-7. Business Intelligence Dashboard (#23)
-8. Materials Catalog (#6) — PARKED
-9. Transactional Email Provider (#34) — future
-10. Email / Calendar Provider Abstraction (#35) — future
-11. File Storage Provider Abstraction (#36) — future
-12. Add `setAppId` to the Drive Pickers (#41) — tech debt
-13. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
+1. #52 cleanup — run the backfill in prod, remove the endpoint, then drop legacy ProjectContact columns (#54)
+2. Stock follow-ups — low-stock alerts, sheets-used report, pick any piece, legacy Deliverable fields (#55)
+3. Client Portal — Read-Only Job History (#26) — reframed; build only if wanted
+4. Move Notes onto Project Details Tab (#37)
+5. Remove `User.isAdmin` (#40) — cleanup migration after #39
+6. Vitest Setup (Backend) (#12)
+7. Remove `xeroContactName` from Project (#14) — cleanup migration
+8. Business Intelligence Dashboard (#23)
+9. Materials Catalog (#6) — PARKED
+10. Transactional Email Provider (#34) — future
+11. Email / Calendar Provider Abstraction (#35) — future
+12. File Storage Provider Abstraction (#36) — future
+13. Add `setAppId` to the Drive Pickers (#41) — tech debt
+14. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
 
 ---
 
@@ -697,7 +722,7 @@ Follow-up idea: show the customer's brand files on the project page and the Shop
 
 ---
 
-**Last Updated:** October 21, 2026 — #52 shipped in one round (customer people + picker, approval email editor, quote links); #53 cleanup added.
+**Last Updated:** October 25, 2026 — #53 Stock & Offcut Management shipped (stock, deliverables tab, suggestions, cut plans, stock take); #52 cleanup renumbered to #54; #55 stock follow-ups added.
 
 October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
 

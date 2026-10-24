@@ -4,6 +4,33 @@ A record of everything shipped. Items are ordered roughly by completion date (mo
 
 ---
 
+### October 2026 — Stock & Offcut Management + Deliverables (#53)
+**Labels:** `feature`, `production`, `inventory`, `materials`, `deliverables`
+
+Replaces the offcut spreadsheet. Built in six rounds (backend PRs #180–#184, frontend #235–#239), changed along the way after testing. Spec: `spec-53-stock-management.md`.
+
+**Stock**
+- `StockPiece` model. A **full sheet line is a stack with a count** (changed after testing — Bren didn't want one row per sheet); adding the same sheet tops up its count, and 0 keeps the line. Offcuts are one row each. Optional Xero material link (fills in the sheet size); special-order stock needs none. Material types are the new `stock_material` taxonomy (ACM, Core flute).
+- **Stock page** (`/stock`, `page.stock`): counts, filters, size sort, add / edit, discard / restore offcuts, delete one or bulk-delete ticked lines. Lines reserved for a job can't be deleted; a reservation whose job was deleted shows "Job deleted" and can be restored or deleted.
+- Keys: `page.stock`, `action.stock.edit`, `action.stock.take`.
+
+**Deliverables**
+- Audit first: the Deliverables tab had been replaced by Materials (`bec231a`) and was unmounted, and its routes were login-only and not scoped to the project. Agreed: bring the tab back, add `project.tab.deliverables.view/.edit`, gate and scope every route, and add `substrateType` / `substrateColour` / `substrateThicknessMm` (the legacy `materialType` means something else, so it was left alone). No `Deliverable.stockPieceId` — the piece's `reservedForDeliverableId` is the one link.
+- Bug found in testing: the new tab had no entry in `TAB_ICONS`, which white-screened every project page. Fixed, and a missing icon no longer crashes the page.
+
+**Suggestions and cutting**
+- `pieceFits` (rotation allowed) / `rankCandidates` (least waste, offcuts before full sheets, oldest first). Colour is an exact name, any case. A blank colour or thickness on the deliverable means **any**. Top five, then "X other candidates available" loads the rest. "No suitable stock, you'll need a new sheet" when nothing fits.
+- Each suggestion has a to-scale drawing. **Use** plans the cut: a big drawing with the sign in the corner and the L-shaped leftover split into two offcuts ("down" or "across" first), editable. The offcuts are **planned** (not stock) until **Mark as cut**; an exact fit gets **Mark as used** instead.
+- **Undo everywhere** (changed after testing): choosing a different piece, Release / Undo, or deleting the deliverable puts the piece back exactly as it was (a full sheet onto its count) and deletes its offcuts — refused only if one of them has gone to another job. One piece per deliverable.
+
+**Stock take**
+- Tablet page (`/stock/take`): material groups with progress, big-button cards (Confirm / Adjust size / Missing / Discard; full sheets Count), add unlisted pieces, skip groups. The draft saves on the tablet and syncs to the server (newer copy wins). Review lists every difference; nothing changes until **Apply** (needs `action.stock.edit` as well).
+- `applyStockTake`: a piece reserved for a job is never removed (skipped with the reason); a missing offcut is discarded with a dated note; a missing full-sheet line goes to 0. Every stock take is kept (`StockTake` / `StockTakeLine`) and shown under "Stock takes".
+
+**Not built** (now #55): low-stock alerts, the sheets-used report, choosing a piece Kit didn't suggest, a minimum offcut size, dropping the legacy Deliverable fields.
+
+---
+
 ### October 2026 — Customer People, Contact Picker + Design Approval Email (#52)
 **Labels:** `feature`, `contacts`, `xero`, `ux`, `database`, `email`
 
@@ -16,7 +43,7 @@ Shipped in one round, with one PR per repo.
 - **People tab:** billing contact (read-only, Edit in Xero), Xero people, Kit people with their jobs (add / edit / archive).
 - **Permissions:** `/api/projects/:id/contacts` is now gated on `project.tab.details.view/.edit` (agreed; it was ungated). The people routes use `contact.tab.people.*`.
 - **Reads:** notifications and approval sends go through the person, and the notification recipient now carries `phoneE164`. Legacy `ProjectContact` columns are kept in step for one release.
-- **Backfill:** one-off `POST /api/admin/backfill-customer-people?dryRun=1` (see #53). Local dry run: 2 created, 2 linked, 345 defaulted, 12 skipped.
+- **Backfill:** one-off `POST /api/admin/backfill-customer-people?dryRun=1` (see #54). Local dry run: 2 created, 2 linked, 345 defaulted, 12 skipped.
 
 **Approval email editor (Part B)**
 - **The modal:** shows the whole `approval_request` email (subject + body), with `[Approve button]` / `[Approve link]` / `[Quote link]` / `[First name]` chips filled per recipient. `[First name]` falls back to the business name, then "there". Can't send without the approve chip (UI and server).
