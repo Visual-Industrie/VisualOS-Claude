@@ -671,6 +671,36 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 
 ---
 
+### 56. Take the SMS Gateway Off the Public Internet
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `cleanup`, `infrastructure`, `sms`, `security`
+
+On 26 October 2026 an edit to the `vil.nz` DNS zone dropped `sms.vil.nz`, and outbound SMS failed ("SMS gateway unreachable") until the record came back. Kit now sends over the LAN: prod `SMS_GATEWAY_URL` is `http://192.168.178.156:3100/api/3rdparty/v1` (the NAS's fixed IP, `smsgate_server`'s published port), so sending no longer depends on DNS. The rest still goes the public way:
+
+1. **Gateway phone → server.** The sms-gate app still connects to `https://sms.vil.nz`. If the phone always stays on office wifi, point it at `http://192.168.178.156:3100` instead. If it ever leaves the building, it needs the public route and the rest of this item doesn't apply.
+2. **Inbound webhooks** (optional). The phone posts to `https://vis.vil.nz/api/sms/webhook`, which has to stay public for everything else anyway. Could go to `http://192.168.178.156:3001/api/sms/webhook` if the phone stays on the LAN. Re-register the `system:ping` webhook (`scripts/register-sms-ping-webhook.ts`) if it moves.
+3. **Remove the public route** once nothing uses it: the DSM reverse-proxy rule for `sms.vil.nz` and the public `sms` DNS record at umbrellar. 443 is forwarded to the NAS (it's how `vis.vil.nz` is reached), so today the gateway API is reachable from the internet behind basic auth.
+4. **Check** from mobile data that `https://sms.vil.nz` no longer answers, a test text still sends, and the Messages page gateway health badge stays online.
+
+---
+
+### 57. Choose Per Release Whether the "New Version" Toast Shows
+**Status:** 📋 Planned
+**Priority:** Medium
+**Labels:** `feature`, `frontend`, `ux`
+
+The "New version available" toast (`hooks/useVersionCheck.tsx`) is unsettling some staff. Today it shows after **every** deploy, frontend or backend, including fixes nobody would notice. Its wording ("anything you're part-way through typing will be lost") also sounds like a warning. Make showing it a choice made per release.
+
+1. **Mark which releases notify.** Add `notify?: boolean` to `Release` in `ReleasesPanel.tsx` (it lives with the release note that every PR already has to add). The build stamps a `notifyVersion` (the latest release with `notify: true`) into the bundle and into `version.json` next to `sha`.
+2. **Prompt only on a new `notifyVersion`.** `useVersionCheck` compares the running bundle's `notifyVersion` with the one in `version.json`, not the sha. A quiet deploy, even one after a loud one, never shows the toast. Extend `shouldPrompt()` in `utils/version.ts` and its tests.
+3. **Backend deploys.** `X-App-Version` currently prompts on any backend change. Either stop prompting on it (most backend deploys don't need a reload) or send an `X-App-Notify` header backed by a flag the backend sets the same way.
+4. **Quiet updates still land.** For a non-notifying release, reload silently at a safe moment: the next route change, or the tab coming back into view after a while, but not while a form has unsaved input. Shop Floor keeps `autoReload`. `vite:preloadError` always prompts (the page is already broken).
+5. **Softer wording.** For example: "Kit has a new update with [summary]. Refresh when you're ready." Show the notifying release's first line so people can see why.
+6. **Process.** When writing a release entry, Claude asks: "Should users get the update toast for this one?" Default **no** for fixes and backend-only changes, **yes** for new features staff will see. Add this to the Development Standards in `CLAUDE.md` once it's built.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -689,6 +719,7 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 10. Multi-Tenancy / Organisation Layer (#32)
 11. Admin Integration Settings Page (#33)
 12. Standard T&Cs on Xero Quotes (#38)
+13. Choose per release whether the update toast shows (#57) — staff are unsettled by it after every deploy
 
 ### Low Priority / Cleanup
 1. #52 cleanup — run the backfill in prod, remove the endpoint, then drop legacy ProjectContact columns (#54)
@@ -705,6 +736,7 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 12. File Storage Provider Abstraction (#36) — future
 13. Add `setAppId` to the Drive Pickers (#41) — tech debt
 14. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
+15. Take the SMS gateway off the public internet (#56) — phone to LAN address, then drop the `sms.vil.nz` proxy rule + DNS record
 
 ---
 
@@ -722,7 +754,9 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 
 ---
 
-**Last Updated:** October 25, 2026 — #53 Stock & Offcut Management shipped (stock, deliverables tab, suggestions, cut plans, stock take); #52 cleanup renumbered to #54; #55 stock follow-ups added.
+**Last Updated:** October 27, 2026 — #56 added: Kit now sends SMS over the LAN after the `sms.vil.nz` DNS record went missing; taking the gateway's public route away is the cleanup. #57 added: the update toast shows only for releases marked to notify.
+
+October 25, 2026 — #53 Stock & Offcut Management shipped (stock, deliverables tab, suggestions, cut plans, stock take); #52 cleanup renumbered to #54; #55 stock follow-ups added.
 
 October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
 

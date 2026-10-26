@@ -287,7 +287,7 @@ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 SHARED_INBOX_EMAIL, SHARED_INBOX_REFRESH_TOKEN
 XERO_CLIENT_ID, XERO_CLIENT_SECRET, XERO_WEBHOOK_KEY, XERO_TENANT_ID
 COOKIE_KEY, FRONTEND_URL, BACKEND_URL, CALLBACK_URL
-SMS_GATEWAY_URL          # e.g. https://sms.vil.nz/api/3rdparty/v1 (private server)
+SMS_GATEWAY_URL          # prod: http://192.168.178.156:3100/api/3rdparty/v1 (smsgate_server on the NAS, over the LAN — no public DNS); local dev: https://sms.vil.nz/api/3rdparty/v1
 SMS_GATEWAY_USERNAME, SMS_GATEWAY_PASSWORD   # shown in the gateway phone app
 SMS_WEBHOOK_SECRET       # webhook signing key, same value as set on the gateway
 SMS_BUSINESS_NAME        # optional, defaults to "Visual Industrie"
