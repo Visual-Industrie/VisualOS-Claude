@@ -671,6 +671,20 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 
 ---
 
+### 56. Take the SMS Gateway Off the Public Internet
+**Status:** 📋 Planned
+**Priority:** Low
+**Labels:** `cleanup`, `infrastructure`, `sms`, `security`
+
+On 26 October 2026 an edit to the `vil.nz` DNS zone dropped `sms.vil.nz`, and outbound SMS failed ("SMS gateway unreachable") until the record came back. Kit now sends over the LAN: prod `SMS_GATEWAY_URL` is `http://192.168.178.156:3100/api/3rdparty/v1` (the NAS's fixed IP, `smsgate_server`'s published port), so sending no longer depends on DNS. The rest still goes the public way:
+
+1. **Gateway phone → server.** The sms-gate app still connects to `https://sms.vil.nz`. If the phone always stays on office wifi, point it at `http://192.168.178.156:3100` instead. If it ever leaves the building, it needs the public route and the rest of this item doesn't apply.
+2. **Inbound webhooks** (optional). The phone posts to `https://vis.vil.nz/api/sms/webhook`, which has to stay public for everything else anyway. Could go to `http://192.168.178.156:3001/api/sms/webhook` if the phone stays on the LAN. Re-register the `system:ping` webhook (`scripts/register-sms-ping-webhook.ts`) if it moves.
+3. **Remove the public route** once nothing uses it: the DSM reverse-proxy rule for `sms.vil.nz` and the public `sms` DNS record at umbrellar. 443 is forwarded to the NAS (it's how `vis.vil.nz` is reached), so today the gateway API is reachable from the internet behind basic auth.
+4. **Check** from mobile data that `https://sms.vil.nz` no longer answers, a test text still sends, and the Messages page gateway health badge stays online.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -705,6 +719,7 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 12. File Storage Provider Abstraction (#36) — future
 13. Add `setAppId` to the Drive Pickers (#41) — tech debt
 14. Stop mounting `mileageRoutes` at bare `/api` (#44) — tech debt, latent route-shadowing trap
+15. Take the SMS gateway off the public internet (#56) — phone to LAN address, then drop the `sms.vil.nz` proxy rule + DNS record
 
 ---
 
@@ -722,7 +737,9 @@ Follow-ups to #53 (see `spec-53-stock-management.md` §5–6 for the original wo
 
 ---
 
-**Last Updated:** October 25, 2026 — #53 Stock & Offcut Management shipped (stock, deliverables tab, suggestions, cut plans, stock take); #52 cleanup renumbered to #54; #55 stock follow-ups added.
+**Last Updated:** October 27, 2026 — #56 added: Kit now sends SMS over the LAN after the `sms.vil.nz` DNS record went missing; taking the gateway's public route away is the cleanup.
+
+October 25, 2026 — #53 Stock & Offcut Management shipped (stock, deliverables tab, suggestions, cut plans, stock take); #52 cleanup renumbered to #54; #55 stock follow-ups added.
 
 October 21, 2026 — Added #52: Part A customer people + project contact picker (Xero billing contact as default primary, extra people saved in Kit); Part B full-text design approval email editor with `[ ]` placeholder chips and the public quote link (stored on `ProjectQuote`, as Xero's API doesn't expose it). Specced in `spec-52-customer-people-picker.md`.
 
