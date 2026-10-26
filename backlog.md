@@ -685,6 +685,22 @@ On 26 October 2026 an edit to the `vil.nz` DNS zone dropped `sms.vil.nz`, and ou
 
 ---
 
+### 57. Choose Per Release Whether the "New Version" Toast Shows
+**Status:** 📋 Planned
+**Priority:** Medium
+**Labels:** `feature`, `frontend`, `ux`
+
+The "New version available" toast (`hooks/useVersionCheck.tsx`) is unsettling some staff. Today it shows after **every** deploy, frontend or backend, including fixes nobody would notice. Its wording ("anything you're part-way through typing will be lost") also sounds like a warning. Make showing it a choice made per release.
+
+1. **Mark which releases notify.** Add `notify?: boolean` to `Release` in `ReleasesPanel.tsx` (it lives with the release note that every PR already has to add). The build stamps a `notifyVersion` (the latest release with `notify: true`) into the bundle and into `version.json` next to `sha`.
+2. **Prompt only on a new `notifyVersion`.** `useVersionCheck` compares the running bundle's `notifyVersion` with the one in `version.json`, not the sha. A quiet deploy, even one after a loud one, never shows the toast. Extend `shouldPrompt()` in `utils/version.ts` and its tests.
+3. **Backend deploys.** `X-App-Version` currently prompts on any backend change. Either stop prompting on it (most backend deploys don't need a reload) or send an `X-App-Notify` header backed by a flag the backend sets the same way.
+4. **Quiet updates still land.** For a non-notifying release, reload silently at a safe moment: the next route change, or the tab coming back into view after a while, but not while a form has unsaved input. Shop Floor keeps `autoReload`. `vite:preloadError` always prompts (the page is already broken).
+5. **Softer wording.** For example: "Kit has a new update with [summary]. Refresh when you're ready." Show the notifying release's first line so people can see why.
+6. **Process.** When writing a release entry, Claude asks: "Should users get the update toast for this one?" Default **no** for fixes and backend-only changes, **yes** for new features staff will see. Add this to the Development Standards in `CLAUDE.md` once it's built.
+
+---
+
 ## Priority Summary
 
 ### High Priority (Ready to Build)
@@ -703,6 +719,7 @@ On 26 October 2026 an edit to the `vil.nz` DNS zone dropped `sms.vil.nz`, and ou
 10. Multi-Tenancy / Organisation Layer (#32)
 11. Admin Integration Settings Page (#33)
 12. Standard T&Cs on Xero Quotes (#38)
+13. Choose per release whether the update toast shows (#57) — staff are unsettled by it after every deploy
 
 ### Low Priority / Cleanup
 1. #52 cleanup — run the backfill in prod, remove the endpoint, then drop legacy ProjectContact columns (#54)
@@ -737,7 +754,7 @@ On 26 October 2026 an edit to the `vil.nz` DNS zone dropped `sms.vil.nz`, and ou
 
 ---
 
-**Last Updated:** October 27, 2026 — #56 added: Kit now sends SMS over the LAN after the `sms.vil.nz` DNS record went missing; taking the gateway's public route away is the cleanup.
+**Last Updated:** October 27, 2026 — #56 added: Kit now sends SMS over the LAN after the `sms.vil.nz` DNS record went missing; taking the gateway's public route away is the cleanup. #57 added: the update toast shows only for releases marked to notify.
 
 October 25, 2026 — #53 Stock & Offcut Management shipped (stock, deliverables tab, suggestions, cut plans, stock take); #52 cleanup renumbered to #54; #55 stock follow-ups added.
 
